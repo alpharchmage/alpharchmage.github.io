@@ -7183,6 +7183,45 @@
 						g.at(a, u)
 						return g
 					}
+					if(a == "tommy")
+					{
+						t = H.d(a) + H.d($.ah())
+						s = H.a([], [T.H])
+						r = H.a([], [T.y])
+						q = P.U(P.f, T.p)
+						p = new F.b([T.M])
+						p.c = p
+						p.b = p
+						o = new F.b([T.L])
+						o.c = o
+						o.b = o
+						n = new F.b([T.G])
+						n.c = n
+						n.b = n
+						m = new F.b([T.J])
+						m.c = m
+						m.b = m
+						l = new F.b([T.K])
+						l.c = l
+						l.b = l
+						k = new F.b([T.D])
+						k.c = k
+						k.b = k
+						j = new F.b([T.A])
+						j.c = j
+						j.b = j
+						i = new F.b([T.C])
+						i.c = i
+						i.b = i
+						h = new F.b([T.I])
+						h.c = h
+						h.b = h
+						g = [P.j]
+						g = new T.tommy(a, u, t, f, s, r, q, p, o, n, m, l, k, j, i, h, H.a([], g), H.a([], g), H.a([], g), H.a([], g))
+						g.Y(a, u, t, f)
+						g.at(a, u)
+						return g
+					}
 					if(a == "lilywhite")
 					{
 						t = H.d(a) + H.d($.ah())
@@ -15010,6 +15049,56 @@
 				_.F = null
 			},
 			alice: function alice(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t)
+			{
+				var _ = this
+				_.aI = 0
+				_.aP = _.bb = _.af = null
+				_.a = a
+				_.b = b
+				_.c = c
+				_.d = d
+				_.y = _.x = _.r = _.f = _.e = null
+				_.z = 0
+				_.fy = _.fx = _.fr = _.dy = _.dx = _.db = _.cy = _.cx = _.ch = _.Q = null
+				_.go = 1
+				_.id = e
+				_.doll = 0
+				_.dolla = 0
+				_.dollb = 0
+				_.dollc = 0
+				_.dolld = 0
+				_.dolle = 0
+				_.dollf = 0
+				_.dollg = 0
+				_.dollh = 0
+				_.dolli = 0
+				_.alic = 1
+				_.k2 = _.k1 = null
+				_.k3 = f
+				_.k4 = null
+				_.r1 = g
+				_.r2 = h
+				_.rx = i
+				_.ry = j
+				_.x1 = k
+				_.x2 = l
+				_.y1 = m
+				_.y2 = n
+				_.I = o
+				_.N = p
+				_.A = !1
+				_.u = q
+				_.U = null
+				_.D = r
+				_.q = s
+				_.a_ = t
+				_.V = _.O = _.L = 0
+				_.J = 4096
+				_.j = 0
+				_.X = _.W = !1
+				_.F = null
+			},
+			tommy: function tommy(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t)
 			{
 				var _ = this
 				_.aI = 0
@@ -41733,6 +41822,77 @@
 
 
 	}
+	T.tommy.prototype = {
+		gah: function()
+		{
+			return C.alice
+		},
+		gaQ: function()
+		{
+			return H.a([], [P.f])
+		},
+		aa: function()
+		{
+			var u, t = new T.aK()
+			t.r = this
+			this.k2 = t
+			t = this.id
+			u = new T.thb3n9()
+			u.f = 5
+			t.push(u)
+			u = new T.thb3s2()
+			u.f = 1080
+			t.push(u)
+			u = new T.thb3s1()
+			u.f = 80
+			t.push(u)
+			u = new T.thb3n1()
+			u.f = 28
+			t.push(u)
+			u = new T.thb3n2()
+			u.f = 31
+			t.push(u)
+			u = new T.thb3n3()
+			u.f = 35
+			t.push(u)
+			u = new T.thb3n4()
+			u.f = 40
+			t.push(u)
+			u = new T.thb3n8()
+			u.f = 50
+			t.push(u)
+			u = new T.thb3n6()
+			u.f = 64
+			t.push(u)
+			u = new T.thb3n7()
+			u.f = 80
+			t.push(u)
+			u = new T.thb3n5()
+			u.f = 400
+			t.push(u)
+		},
+		bM: function()
+		{
+			var u, t = this
+			t.dK()
+			u = t.bb
+			if(u == null)
+				u = t.bb = new T.cB(t)
+			t.y2.i(0, u)
+		},
+		ay: function(a, b, c, d)
+		{
+
+			if(this.fr <= 0)
+			{
+				d.a.push($.v())
+				d.a.push(T.e("[0]: [没串赢]", this, this.r, null, null, 0, 1000, 100))
+			}
+		}
+
+
+
+	}
 	T.lilywhite.prototype = {
 		gah: function()
 		{
@@ -49094,7 +49254,7 @@
 		s(T.D, [T.cg, T.dF, T.el])
 		s(T.J, [T.dE, T.fire, T.ay])
 		s(T.av, [T.hh, T.koduzh, T.mir, T.hha4n2, T.alf, T.youzi, T.tao, T.lv, T.pll, T.hel, T.UAV1, T.UAV2, T.LAN, T.BAR, T.szj, T.hha7t1, T.hha11t1, T.hha9n2, T.hhb3n1, T.hhb3n2, T.hhb3n3, T.hhb3n4, T.hhb3n5, T.hhb3n6, T.hhb3n7, T.hhb3n8, T.hhb3n9, T.hhb8n1, T.hhb8t1a, T.hhb8t1b, T.hhb8t2, T.hi, T.ho, T.E8s, T.Syl, T.Windows])
-		s(T.cA, [T.eY, T.eZ, T.f_, T.f0, T.d7, T.d8, T.f1, T.f2, T.bA, T.f4, T.f6, T.tigershark, T.dark, T.hell, T.yuri2, T.yuriy, T.megia, T.tomb, T.testa, T.rumia, T.daiyousei, T.cirno, T.hong, T.testa, T.koakuma, T.patchouli, T.sakuya, T.reimu, T.Squall, T.marisa, T.remilia, T.flandre, T.rin, T.letty, T.chen, T.alice, T.lilywhite, T.phantom, T.youmu, T.yuyuko, T.ran, T.yukari, T.nue, T.AL1S, T.aris, T.momori, T.midori, T.yuzu, T.A01, T.B02, T.C03, T.D04, T.hifumi, T.azusa, T.Kirin, T.karen, T.hikari, T.mahiru, T.junna, T.nana, T.maya, T.kuro, T.futaba, T.kaoruko, T.ribbit1, T.ribbit2, T.ribbit3, T.ribbit4, T.fox1, T.fox2, T.fox3, T.fox4, T.jntm, T.yeya, T.yuki, T.ema, T.hiro, T.meruru, T.koko, T.sherii, T.hanna, T.anan, T.noa, T.reia, T.miria, T.nanoka, T.maago, T.arisa, T.KODU])
+		s(T.cA, [T.eY, T.eZ, T.f_, T.f0, T.d7, T.d8, T.f1, T.f2, T.bA, T.f4, T.f6, T.tigershark, T.dark, T.hell, T.yuri2, T.yuriy, T.megia, T.tomb, T.testa, T.rumia, T.daiyousei, T.cirno, T.hong, T.testa, T.koakuma, T.patchouli, T.sakuya, T.reimu, T.Squall, T.marisa, T.remilia, T.flandre, T.rin, T.letty, T.chen, T.alice, T.lilywhite, T.phantom, T.youmu, T.yuyuko, T.ran, T.yukari, T.nue, T.AL1S, T.aris, T.momori, T.midori, T.yuzu, T.A01, T.B02, T.C03, T.D04, T.hifumi, T.azusa, T.Kirin, T.karen, T.hikari, T.mahiru, T.junna, T.nana, T.maya, T.kuro, T.futaba, T.kaoruko, T.ribbit1, T.ribbit2, T.ribbit3, T.ribbit4, T.fox1, T.fox2, T.fox3, T.fox4, T.jntm, T.yeya, T.yuki, T.ema, T.hiro, T.meruru, T.koko, T.sherii, T.hanna, T.anan, T.noa, T.reia, T.miria, T.nanoka, T.maago, T.arisa, T.KODU, T.tommy])
 		t(T.hg, T.cy)
 		t(T.f3, T.bA)
 		t(T.e_, T.dN, T.tha6t2, T.yuriSuperControl)
@@ -49534,6 +49694,7 @@
 		C.letty = H.a(u([-4, 30, 22, 17, 33, 19, 40, 400]), [P.j])
 		C.chen = H.a(u([12, 15, 30, 20, 0, 11, 14, 524]), [P.j])
 		C.alice = H.a(u([10, 34, 18, 21, 50, 13, 70, 939]), [P.j])
+		C.tommy = H.a(u([10, 34, 18, 21, 50, 13, 70, 939]), [P.j])
 		C.lilywhite = H.a(u([-7, 1, 2, 3, -16, 26, -5, 700]), [P.j])
 		C.phantom = H.a(u([10, 2, 35, 34, 35, 15, 9, 1215]), [P.j])
 		C.youmu = H.a(u([2, -6, 40, 42, -16, 15, 9, 501]), [P.j])
@@ -49667,6 +49828,8 @@
 				"chen",
 				"iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAMdJREFUOE+dk+ERwyAIhXWSdhSzSTbJZZNuIqM0k9iD9FFBbHrllwLve6JnTl2UUlq/n62JKKMmi15Ij/KVUVbSOoMUcCX0VAYJAO4e0O5Wkp92j5MI4Eqs8waQAdA7wzXKyd2tlAxg1sjNUW0K8PNiBEBQV0CtNeVjV5dfAO22pWVZzhEYIJF3vWoPMa/SNukbARNIJJ4DHMS8/tsZOT0BJ3QMffTPOJIKxOKFvzAAuHicEL4wH+xu/gIaIlAvZiFCAUj8851fbA95hztD+x4AAAAASUVORK5CYII=",
 				"alice",
+				"iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAMdJREFUOE+dk+ERwyAIhXWSdhSzSTbJZZNuIqM0k9iD9FFBbHrllwLve6JnTl2UUlq/n62JKKMmi15Ij/KVUVbSOoMUcCX0VAYJAO4e0O5Wkp92j5MI4Eqs8waQAdA7wzXKyd2tlAxg1sjNUW0K8PNiBEBQV0CtNeVjV5dfAO22pWVZzhEYIJF3vWoPMa/SNukbARNIJJ4DHMS8/tsZOT0BJ3QMffTPOJIKxOKFvzAAuHicEL4wH+xu/gIaIlAvZiFCAUj8851fbA95hztD+x4AAAAASUVORK5CYII=",
+				"tommy",
 				"iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAKZJREFUOE+9k8EVwzAIQ2GfDuHuk07T7hMPkX2SJ8ciNE7egx7qkw/4GyGhpZRVEqfWqr5cAaiPOYQoy9PqCEoB+JogQH4CAATIJWB9d4lfSkWkT0pf+4VdDB0YAFWEuDETQMgI+Kj9NkxWRXQ6aOjiGoCXZ3Op7D+Au2iFJNCFzBBRyzRGbTQX2iURZ+9Mc4EA30VoMXqYLG9+KzPLdQ5skxPtAHUblClvBazZcawAAAAASUVORK5CYII=",
 				"lilywhite",
 				"iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAHNJREFUOE+9k2EOgCAIheFmcnK4mQ0bzZAyh8ufT/nggSAEp5RSI11E0OtNiAKY+faWiAamAtGCfUBUQa8ZsAFWgw2kkFcAwmm5QtgSmAK+2NhvQct+KtnfhRbSgJlvP8r9Pegz/DdGzbr6G6+vnF6m7DofmvZbBejqnqIAAAAASUVORK5CYII=",

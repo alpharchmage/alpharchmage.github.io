@@ -41825,7 +41825,7 @@
 	T.tommy.prototype = {
 		gah: function()
 		{
-			return C.alice
+			return C.tommy
 		},
 		gaQ: function()
 		{

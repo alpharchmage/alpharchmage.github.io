@@ -35494,10 +35494,10 @@
 	T.thb3n5.prototype = {
 		ar: function(a, b)
 		{
-			if(this.r.dolle == 1)
-			{
-				return !1
-			}
+			// if(this.r.dolle == 1)
+			// {
+			// 	return !1
+			// }
 			return this.aS(a, b)
 		},
 		a9: function(a, b, c)

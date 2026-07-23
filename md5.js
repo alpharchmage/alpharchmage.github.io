@@ -41818,6 +41818,9 @@
 				d.a.push(T.e("[0]: [人偶剧...终于落幕了...]", this, this.r, null, null, 0, 1000, 100))
 			}
 		}
+
+
+
 	}
 	T.tommy.prototype = {
 		gah: function()
@@ -41846,15 +41849,8 @@
 			u = new T.thb4b1()
 			u.f = 131
 			t.push(u)
-		},
-		bM: function()
-		{
-			var u, t = this
-			t.dK()
-			u = t.bb
-			if(u == null)
-				u = t.bb = new T.cB(t)
-			t.y2.i(0, u)
+
+
 		},
 		ay: function(a, b, c, d)
 		{
@@ -49666,7 +49662,7 @@
 		C.letty = H.a(u([-4, 30, 22, 17, 33, 19, 40, 400]), [P.j])
 		C.chen = H.a(u([12, 15, 30, 20, 0, 11, 14, 524]), [P.j])
 		C.alice = H.a(u([10, 34, 18, 21, 50, 13, 70, 939]), [P.j])
-		C.tommy = H.a(u([100, 5, 5, 5, 5, 5, 5, 400]), [P.j])
+		C.tommy = H.a(u([-7, 1, 2, 3, -16, 26, -5, 700]), [P.j])
 		C.lilywhite = H.a(u([-7, 1, 2, 3, -16, 26, -5, 700]), [P.j])
 		C.phantom = H.a(u([10, 2, 35, 34, 35, 15, 9, 1215]), [P.j])
 		C.youmu = H.a(u([2, -6, 40, 42, -16, 15, 9, 501]), [P.j])

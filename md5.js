@@ -41852,6 +41852,7 @@
 
 
 		},
+
 		ay: function(a, b, c, d)
 		{
 			if(this.hp <= 0)

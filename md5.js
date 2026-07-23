@@ -35494,10 +35494,10 @@
 	T.thb3n5.prototype = {
 		ar: function(a, b)
 		{
-			// if(this.r.dolle == 1)
-			// {
-			// 	return !1
-			// }
+			if(this.r.dolle == 1)
+			{
+				return !1
+			}
 			return this.aS(a, b)
 		},
 		a9: function(a, b, c)
@@ -49666,7 +49666,7 @@
 		C.letty = H.a(u([-4, 30, 22, 17, 33, 19, 40, 400]), [P.j])
 		C.chen = H.a(u([12, 15, 30, 20, 0, 11, 14, 524]), [P.j])
 		C.alice = H.a(u([10, 34, 18, 21, 50, 13, 70, 939]), [P.j])
-		C.tommy = H.a(u([1000000, 5, 5, 5, 5, 5, 5, 1000]), [P.j])
+		C.tommy = H.a(u([100, 5, 5, 5, 5, 5, 5, 400]), [P.j])
 		C.lilywhite = H.a(u([-7, 1, 2, 3, -16, 26, -5, 700]), [P.j])
 		C.phantom = H.a(u([10, 2, 35, 34, 35, 15, 9, 1215]), [P.j])
 		C.youmu = H.a(u([2, -6, 40, 42, -16, 15, 9, 501]), [P.j])

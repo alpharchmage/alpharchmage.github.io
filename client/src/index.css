@@ -1,7 +1,4 @@
 /* Style reference: 白色背景、圆角蓝青发光框与圆角按钮；唯一的直角元素是中间文字输入框。 */
-@import "tailwindcss";
-@import "tw-animate-css";
-
 :root {
   color: #16323b;
   background: #fff;

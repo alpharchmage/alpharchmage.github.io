@@ -15,6 +15,11 @@ const MAGIC_VULN_ICON_URL = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL
 
 const POISON_ICON_URL = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCI+PHBhdGggZD0iTTkgMmg2djNsLTEgMiA1IDlhNCA0IDAgMDEtNCA2SDhhNCA0IDAgMDEtNC02bDUtOVY1SDl6IiBmaWxsPSIjMTk3NTQ1IiBzdHJva2U9IiMwOTNkMjUiLz48Y2lyY2xlIGN4PSIxNiIgY3k9IjEwIiByPSIxIiBmaWxsPSIjZGZmZmYwIi8+PC9zdmc+Cg==";
 
+const DEFENSE_DOWN_ICON_URL = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZD0iTTEyIDIgMjAgNS41IDE4LjIgMTUgMTIgMjIgNS44IDE1IDQgNS41WiIgZmlsbD0iIzhhNWFiNyIgc3Ryb2tlPSIjNGYyZjcwIiBzdHJva2Utd2lkdGg9IjEuNCIvPjxwYXRoIGQ9Im0xNCA1LTQgNiAzIDEtMyA3IiBmaWxsPSJub25lIiBzdHJva2U9IiNmNmRkZmYiIHN0cm9rZS13aWR0aD0iMS44IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz48cGF0aCBkPSJNNi41IDE3LjVoNSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjEuNyIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PC9zdmc+";
+const DAMAGE_DOWN_ICON_URL = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZD0ibTUgNSAxNCAxNE04IDRsNCA0LTIgMyAzIDMgMy0yIDQgNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjN2I0YzlmIiBzdHJva2Utd2lkdGg9IjIuMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PHBhdGggZD0iTTE4IDR2MTFtMCAwLTMtM20zIDMgMy0zIiBmaWxsPSJub25lIiBzdHJva2U9IiNlZmI2ZmYiIHN0cm9rZS13aWR0aD0iMS44IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz48Y2lyY2xlIGN4PSI2IiBjeT0iMTgiIHI9IjMiIGZpbGw9IiM5ZDY1YzgiIHN0cm9rZT0iIzViMzY3OSIvPjxwYXRoIGQ9Ik00LjUgMThoMyIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjEuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PC9zdmc+";
+const SQUARE_ICON_URL = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHJlY3QgeD0iMyIgeT0iMyIgd2lkdGg9IjE4IiBoZWlnaHQ9IjE4IiByeD0iMyIgZmlsbD0iIzhiNWNmNiIgc3Ryb2tlPSIjNGMxZDk1IiBzdHJva2Utd2lkdGg9IjEuNSIvPjxwYXRoIGQ9Ik03IDdoMTB2MTBIN3oiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2Y1ZjNmZiIgc3Ryb2tlLXdpZHRoPSIxLjUiLz48cGF0aCBkPSJNOS41IDkuNWg1djVoLTV6IiBmaWxsPSIjZGRkNmZlIi8+PC9zdmc+";
+const LAMENT_ICON_URL = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCI+PHJlY3QgeD0iMi4yIiB5PSIyLjIiIHdpZHRoPSIxOS42IiBoZWlnaHQ9IjE5LjYiIHJ4PSIyLjUiIGZpbGw9IiNmN2RkZGQiIHN0cm9rZT0iI2NmMzAzNSIgc3Ryb2tlLXdpZHRoPSIyIi8+PHBhdGggZD0iTTEwIDVoNHYxMGg0djNoLTR2MmgtNHYtMkg2di0zaDR6IiBmaWxsPSIjMTMxMzEzIi8+PHBhdGggZD0iTTYgNWg0TTE0IDVoNCIgc3Ryb2tlPSIjZmZmZmZmIiBzdHJva2Utb3BhY2l0eT0iLjYiIHN0cm9rZS13aWR0aD0iMS4xIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48L3N2Zz4K";
+
 type DamageVisual = {
   animationId: number;
   targetPlayerId: number;
@@ -46,7 +51,7 @@ type ManaVisual = {
 };
 
 type StatusBadge = {
-  key: "freeze" | "ironwall" | "speed-up" | "speed-down" | "burn" | "poison" | "parry" | "magic-vuln";
+  key: "freeze" | "ironwall" | "speed-up" | "speed-down" | "burn" | "poison" | "parry" | "magic-vuln" | "defense-down" | "damage-down" | "square" | "lament";
   strength: number;
   layers: number;
   priority: number;
@@ -63,6 +68,10 @@ function getStatusBadges(player: CppPlayerSnapshot) {
   const burnLayers = player.burnLayers ?? 0;
   const poisonLayers = player.poisonLayers ?? 0;
   const parryLayers = player.parryLayers ?? 0;
+  const lamentLayers = player.lamentLayers ?? 0;
+  const defenseDownLayers = player.defenseDownLayers ?? 0;
+  const damageDownLayers = player.damageDownLayers ?? 0;
+  const squareLayers = player.squareLayers ?? 0;
   const magicVulnerability = player.magicVulnerability ?? 0;
 
   if (magicVulnerability > 0) statuses.push({ key: "magic-vuln", strength: magicVulnerability, layers: Number.MAX_SAFE_INTEGER, priority: -1, title: `魔法易损 ${magicVulnerability}/∞`, icon: MAGIC_VULN_ICON_URL });
@@ -70,9 +79,13 @@ function getStatusBadges(player: CppPlayerSnapshot) {
   if (burnLayers > 0) statuses.push({ key: "burn", strength: player.burnStrength ?? 0, layers: burnLayers, priority: 1, title: `烧伤 ${player.burnStrength ?? 0}/${burnLayers}`, icon: FIRE_ICON_URL });
   if (poisonLayers > 0) statuses.push({ key: "poison", strength: player.poisonStrength ?? 0, layers: poisonLayers, priority: 2, title: `中毒 ${player.poisonStrength ?? 0}/${poisonLayers}`, icon: POISON_ICON_URL });
   if (parryLayers > 0) statuses.push({ key: "parry", strength: 1, layers: parryLayers, priority: 3, title: `招架 1/${parryLayers}`, icon: PARRY_ICON_URL });
-  if (speedDownLayers > 0) statuses.push({ key: "speed-down", strength: player.speedDownStrength ?? 0, layers: speedDownLayers, priority: 4, title: `速度削减 ${player.speedDownStrength ?? 0}/${speedDownLayers}`, icon: SPEED_DOWN_ICON_URL });
-  if (ironwallLayers > 0) statuses.push({ key: "ironwall", strength: player.ironwallStrength ?? 0, layers: ironwallLayers, priority: 5, title: `铁壁 ${player.ironwallStrength ?? 0}/${ironwallLayers}`, icon: IRONWALL_ICON_URL });
-  if (speedUpLayers > 0) statuses.push({ key: "speed-up", strength: player.speedUpStrength ?? 0, layers: speedUpLayers, priority: 6, title: `速度强化 ${player.speedUpStrength ?? 0}/${speedUpLayers}`, icon: SPEED_UP_ICON_URL });
+  if (lamentLayers > 0) statuses.push({ key: "lament", strength: 1, layers: lamentLayers, priority: 2, title: `哀悼 1/${lamentLayers}`, icon: LAMENT_ICON_URL });
+  if (defenseDownLayers > 0) statuses.push({ key: "defense-down", strength: player.defenseDownStrength ?? 0, layers: defenseDownLayers, priority: 4, title: `防御削弱 ${player.defenseDownStrength ?? 0}/${defenseDownLayers}`, icon: DEFENSE_DOWN_ICON_URL });
+  if (damageDownLayers > 0) statuses.push({ key: "damage-down", strength: player.damageDownStrength ?? 0, layers: damageDownLayers, priority: 5, title: `伤害削弱 ${player.damageDownStrength ?? 0}/${damageDownLayers}`, icon: DAMAGE_DOWN_ICON_URL });
+  if (squareLayers > 0) statuses.push({ key: "square", strength: player.squareStrength ?? 0, layers: squareLayers, priority: 3, title: `方 ${player.squareStrength ?? 0}/${squareLayers}，回魔为0`, icon: SQUARE_ICON_URL });
+  if (speedDownLayers > 0) statuses.push({ key: "speed-down", strength: player.speedDownStrength ?? 0, layers: speedDownLayers, priority: 6, title: `速度削减 ${player.speedDownStrength ?? 0}/${speedDownLayers}`, icon: SPEED_DOWN_ICON_URL });
+  if (ironwallLayers > 0) statuses.push({ key: "ironwall", strength: player.ironwallStrength ?? 0, layers: ironwallLayers, priority: 7, title: `铁壁 ${player.ironwallStrength ?? 0}/${ironwallLayers}`, icon: IRONWALL_ICON_URL });
+  if (speedUpLayers > 0) statuses.push({ key: "speed-up", strength: player.speedUpStrength ?? 0, layers: speedUpLayers, priority: 8, title: `速度强化 ${player.speedUpStrength ?? 0}/${speedUpLayers}`, icon: SPEED_UP_ICON_URL });
 
   return statuses.sort((a, b) => b.layers - a.layers || a.priority - b.priority).slice(0, 3);
 }
@@ -167,6 +180,7 @@ export function BattlePlayback({ battle, onRestart, compactMode = false }: { bat
   const [damageVisuals, setDamageVisuals] = useState<DamageVisual[]>([]);
   const [healVisuals, setHealVisuals] = useState<HealVisual[]>([]);
   const [manaVisual, setManaVisual] = useState<ManaVisual | null>(null);
+  const [executeShakeTick, setExecuteShakeTick] = useState(0);
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
   const displayPlayersRef = useRef(displayPlayers);
   const playbackStreamRef = useRef<HTMLDivElement | null>(null);
@@ -212,6 +226,7 @@ export function BattlePlayback({ battle, onRestart, compactMode = false }: { bat
     setDamageVisuals([]);
     setHealVisuals([]);
     setManaVisual(null);
+    setExecuteShakeTick(0);
   }, [battle]);
 
   useEffect(() => {
@@ -223,7 +238,7 @@ export function BattlePlayback({ battle, onRestart, compactMode = false }: { bat
     const isFinalSegment = hasSegmentPause === false || segmentIndex >= currentEvent.length - 1;
     const statusCommands = new Map<number, CppRenderCommand>();
     for (const command of currentEvent) {
-      const hasStatusSnapshot = command.frontEndAnimation === "status_sync" || [command.freezeStrength, command.freezeLayers, command.ironwallStrength, command.ironwallLayers, command.speedUpStrength, command.speedUpLayers, command.speedDownStrength, command.speedDownLayers, command.burnStrength, command.burnLayers, command.poisonStrength, command.poisonLayers, command.parryLayers].some((value) => value !== undefined);
+      const hasStatusSnapshot = command.frontEndAnimation === "status_sync" || [command.freezeStrength, command.freezeLayers, command.ironwallStrength, command.ironwallLayers, command.defenseDownStrength, command.defenseDownLayers, command.damageDownStrength, command.damageDownLayers, command.squareStrength, command.squareLayers, command.speedUpStrength, command.speedUpLayers, command.speedDownStrength, command.speedDownLayers, command.burnStrength, command.burnLayers, command.poisonStrength, command.poisonLayers, command.parryLayers, command.lamentLayers, command.playerName, command.playerMaxHp, command.playerPhysicalAttack, command.playerPhysicalDefense, command.playerMagicAttack, command.playerMagicDefense, command.playerSpeed].some((value) => value !== undefined);
       if (command.targetPlayerId !== 0 && hasStatusSnapshot) statusCommands.set(command.targetPlayerId, command);
     }
 
@@ -233,10 +248,24 @@ export function BattlePlayback({ battle, onRestart, compactMode = false }: { bat
         if (!statusCommand) return player;
         return {
           ...player,
+          name: statusCommand.playerName ?? player.name,
+          maxHp: statusCommand.playerMaxHp ?? player.maxHp,
+          physicalAttack: statusCommand.playerPhysicalAttack ?? player.physicalAttack,
+          physicalDefense: statusCommand.playerPhysicalDefense ?? player.physicalDefense,
+          magicAttack: statusCommand.playerMagicAttack ?? player.magicAttack,
+          magicDefense: statusCommand.playerMagicDefense ?? player.magicDefense,
+          speed: statusCommand.playerSpeed ?? player.speed,
+          hp: statusCommand.frontEndAnimation === "familiar_transform" || statusCommand.frontEndAnimation === "status_sync" ? statusCommand.valueAfter : player.hp,
           freezeStrength: statusCommand.freezeStrength ?? player.freezeStrength,
           freezeLayers: statusCommand.freezeLayers ?? player.freezeLayers,
           ironwallStrength: statusCommand.ironwallStrength ?? player.ironwallStrength,
           ironwallLayers: statusCommand.ironwallLayers ?? player.ironwallLayers,
+          defenseDownStrength: statusCommand.defenseDownStrength ?? player.defenseDownStrength,
+          defenseDownLayers: statusCommand.defenseDownLayers ?? player.defenseDownLayers,
+          damageDownStrength: statusCommand.damageDownStrength ?? player.damageDownStrength,
+          damageDownLayers: statusCommand.damageDownLayers ?? player.damageDownLayers,
+          squareStrength: statusCommand.squareStrength ?? player.squareStrength,
+          squareLayers: statusCommand.squareLayers ?? player.squareLayers,
           speedUpStrength: statusCommand.speedUpStrength ?? player.speedUpStrength,
           speedUpLayers: statusCommand.speedUpLayers ?? player.speedUpLayers,
           speedDownStrength: statusCommand.speedDownStrength ?? player.speedDownStrength,
@@ -246,8 +275,9 @@ export function BattlePlayback({ battle, onRestart, compactMode = false }: { bat
           poisonStrength: statusCommand.poisonStrength ?? player.poisonStrength,
           poisonLayers: statusCommand.poisonLayers ?? player.poisonLayers,
           parryLayers: statusCommand.parryLayers ?? player.parryLayers,
+          lamentLayers: statusCommand.lamentLayers ?? player.lamentLayers,
           alive: statusCommand.alive ?? player.alive,
-          isRevived: statusCommand.frontEndAnimation === "revive_heal" ? true : statusCommand.alive === false ? false : player.isRevived,
+          isRevived: statusCommand.frontEndAnimation === "revive_heal" || statusCommand.frontEndAnimation === "familiar_transform" ? true : statusCommand.alive === false ? false : player.isRevived,
         };
       });
       displayPlayersRef.current = nextPlayers;
@@ -259,10 +289,11 @@ export function BattlePlayback({ battle, onRestart, compactMode = false }: { bat
       return () => window.clearTimeout(segmentTimer);
     }
 
-    const damageCommands = currentEvent.filter((command) => command.renderTone === 3 && (command.frontEndAnimation === "normal_attack_damage" || command.frontEndAnimation === "stab_damage" || command.frontEndAnimation === "critical_strike_damage" || command.frontEndAnimation === "lifesteal_damage" || command.frontEndAnimation === "parry_counter_damage" || command.frontEndAnimation === "counter_damage" || command.frontEndAnimation === "fireball_damage" || command.frontEndAnimation === "plague_damage" || command.frontEndAnimation === "burn_damage" || command.frontEndAnimation === "poison_damage" || command.frontEndAnimation === "status_damage" || command.frontEndAnimation === "thunder_damage" || command.frontEndAnimation === "thunder_damage_last" || command.frontEndAnimation === "earthquake_damage" || command.frontEndAnimation === "ice_damage" || command.frontEndAnimation === "life_wheel_damage") && command.targetPlayerId !== 0);
-    const healCommand = currentEvent.find((command) => command.frontEndAnimation === "heal" || command.frontEndAnimation === "lifesteal_heal" || command.frontEndAnimation === "status_heal" || command.frontEndAnimation === "revive_heal" || command.frontEndAnimation === "life_wheel_heal" || command.frontEndAnimation === "devour_heal");
+    const damageCommands = currentEvent.filter((command) => (command.renderTone === 3 || command.frontEndAnimation === "galahad_laser_damage") && (command.frontEndAnimation === "normal_attack_damage" || command.frontEndAnimation === "stab_damage" || command.frontEndAnimation === "critical_strike_damage" || command.frontEndAnimation === "lifesteal_damage" || command.frontEndAnimation === "galahad_slash_damage" || command.frontEndAnimation === "galahad_laser_damage" || command.frontEndAnimation === "parry_counter_damage" || command.frontEndAnimation === "counter_damage" || command.frontEndAnimation === "fireball_damage" || command.frontEndAnimation === "plague_damage" || command.frontEndAnimation === "burn_damage" || command.frontEndAnimation === "poison_damage" || command.frontEndAnimation === "status_damage" || command.frontEndAnimation === "thunder_damage" || command.frontEndAnimation === "thunder_damage_last" || command.frontEndAnimation === "earthquake_damage" || command.frontEndAnimation === "ice_damage" || command.frontEndAnimation === "life_wheel_damage" || command.frontEndAnimation === "world_search_damage" || command.frontEndAnimation === "world_execute_damage") && command.targetPlayerId !== 0);
+    const healCommand = currentEvent.find((command) => command.frontEndAnimation === "heal" || command.frontEndAnimation === "lifesteal_heal" || command.frontEndAnimation === "galahad_witch_heal" || command.frontEndAnimation === "status_heal" || command.frontEndAnimation === "revive_heal" || command.frontEndAnimation === "life_wheel_heal" || command.frontEndAnimation === "devour_heal");
     const reviveCommand = currentEvent.find((command) => command.frontEndAnimation === "revive_heal");
     const deathCommand = currentEvent.find((command) => command.frontEndAnimation === "death" || command.frontEndAnimation === "familiar_depart");
+    const worldExecutePulse = currentEvent.some((command) => command.frontEndAnimation === "world_execute");
     const familiarSpawnCommand = currentEvent.find((command) => command.frontEndAnimation === "summon_spawn" && command.targetPlayerId !== 0);
     const manaGainCommand = currentEvent.find((command) => command.frontEndAnimation === "mana_gain" && command.sourcePlayerId !== 0);
     const manaCostCommand = currentEvent.find((command) => command.frontEndAnimation === "mana_cost" && command.sourcePlayerId !== 0);
@@ -273,6 +304,13 @@ export function BattlePlayback({ battle, onRestart, compactMode = false }: { bat
         if (currentPlayers.some((player) => player.id === finalFamiliar.id) === false) {
           const spawnedFamiliar: CppPlayerSnapshot = {
             ...finalFamiliar,
+            name: familiarSpawnCommand.playerName ?? finalFamiliar.name,
+            maxHp: familiarSpawnCommand.playerMaxHp ?? finalFamiliar.maxHp,
+            physicalAttack: familiarSpawnCommand.playerPhysicalAttack ?? finalFamiliar.physicalAttack,
+            physicalDefense: familiarSpawnCommand.playerPhysicalDefense ?? finalFamiliar.physicalDefense,
+            magicAttack: familiarSpawnCommand.playerMagicAttack ?? finalFamiliar.magicAttack,
+            magicDefense: familiarSpawnCommand.playerMagicDefense ?? finalFamiliar.magicDefense,
+            speed: familiarSpawnCommand.playerSpeed ?? finalFamiliar.speed,
             hp: familiarSpawnCommand.valueAfter,
             mana: 0,
             freezeStrength: 0,
@@ -335,9 +373,11 @@ export function BattlePlayback({ battle, onRestart, compactMode = false }: { bat
     const isNextFinalThunderEvent = events[eventIndex + 1]?.some((command) => command.frontEndAnimation === "thunder_damage_last") ?? false;
     const isEarthquakeDamage = currentEvent.some((command) => command.frontEndAnimation === "earthquake_damage");
     const eventDelay = isBlankLine ? (isLongBattle ? 16 : 32) : isNextFinalThunderEvent ? (isLongBattle ? 110 : 180) : isEarthquakeDamage ? (isLongBattle ? 42 : 82) : (isLongBattle ? 48 : 96);
-    const lifeEraseDelay = Math.max(8, Math.floor(eventDelay * 0.1));
-    const lifeTransitionMs = Math.max(18, eventDelay - lifeEraseDelay);
+    const lifeEraseDelay = Math.max(4, Math.floor(eventDelay * 0.05));
+    const lifeTransitionMs = Math.max(12, Math.floor(eventDelay * 0.5));
     const timers: number[] = [];
+
+    if (worldExecutePulse) setExecuteShakeTick((tick) => tick + 1);
 
     if (damageCommands.length > 0) {
       const nextVisuals = damageCommands.flatMap((damageCommand) => {
@@ -430,13 +470,19 @@ export function BattlePlayback({ battle, onRestart, compactMode = false }: { bat
       members.push(player);
       groups.set(player.teamId, members);
     }
-    const familiarOwnerIds = new Set(battle.finalPlayers.filter((player) => player.isFamiliar && player.ownerPlayerId).map((player) => player.ownerPlayerId));
     return Array.from(groups.entries()).map(([teamId, members]) => ({
       teamId,
       owners: members.filter((player) => player.isFamiliar !== true).map((owner) => ({
         owner,
-        familiars: members.filter((player) => player.isFamiliar && player.ownerPlayerId === owner.id),
-        reservesFamiliarSlot: familiarOwnerIds.has(owner.id),
+        // 将二级眷属递归平铺在顶层本体之后：科学性实验魔女仍是兰斯洛特0号的真实 owner，
+        // 但两者都会显示在 mili 的单位槽下，避免嵌套眷属被过滤掉。
+        familiars: (() => {
+          const collect = (ownerPlayerId: number): CppPlayerSnapshot[] => members
+            .filter((player) => player.isFamiliar && player.ownerPlayerId === ownerPlayerId)
+            .flatMap((familiar) => [familiar, ...collect(familiar.id)]);
+          return collect(owner.id);
+        })(),
+        reservesFamiliarSlot: members.some((player) => player.isFamiliar && player.ownerPlayerId === owner.id),
       })),
     }));
   }, [battle.finalPlayers, displayPlayers]);
@@ -452,7 +498,7 @@ export function BattlePlayback({ battle, onRestart, compactMode = false }: { bat
   }, [healVisuals]);
 
   return (
-    <main className="arena-screen" aria-label="名字竞技场战斗界面">
+    <main className={`arena-screen ${executeShakeTick > 0 ? `is-execute-shaking execute-shake-${executeShakeTick % 2}` : ""}`} aria-label="名字竞技场战斗界面">
       <section className="arena-frame">
         <AttributeStrip players={battle.initialPlayers} />
         <aside className={`unit-panel ${compactMode ? "is-compact" : ""}`} aria-label="参战单位生命栏">
@@ -484,7 +530,7 @@ export function BattlePlayback({ battle, onRestart, compactMode = false }: { bat
                 const isGuardName = guardNames.has(command.text);
                 const poisonFailureText = command.frontEndAnimation === "poison_fail" ? command.text.trim() || "失败" : command.text;
                 const commandTone = isGuardLabel ? "tone-ironwall" : isGuardName ? "tone-normal" : command.frontEndAnimation === "poison_fail" ? "tone-poison" : toneClass(command.renderTone);
-                const commandClassName = `${commandTone}${isParryCounterNumber ? " parry-counter-number" : ""}`;
+                const commandClassName = `${commandTone}${isParryCounterNumber ? " parry-counter-number" : ""}${command.frontEndAnimation === "world_search" && command.text === "world.search(you);" ? " world-search-text" : ""}${command.frontEndAnimation === "world_execute" && (command.text === "world.execute(me);" || command.text === "execute") ? " world-execute-text" : ""}`;
                 return <span className={commandClassName} key={`${commandIndex}-${command.text}`}>{isParryCounterNumber && <i className="parry-counter-flash-ring" aria-hidden="true" />}{command.frontEndAnimation === "freeze_apply" && command.text === "冻结" && <img className="freeze-icon" src={FREEZE_ICON_URL} alt="" aria-hidden="true" />}{command.frontEndAnimation === "ironwall" && command.text === "铁壁" && <img className="ironwall-icon" src={IRONWALL_ICON_URL} alt="" aria-hidden="true" />}{command.frontEndAnimation === "lifesteal_attack" && command.text === "吸血攻击" && <img className="lifesteal-icon" src={LIFESTEAL_ICON_URL} alt="" aria-hidden="true" />}{command.frontEndAnimation === "fireball" && command.text === "火球术" && <img className="fire-icon" src={FIRE_ICON_URL} alt="" aria-hidden="true" />}{command.frontEndAnimation === "poison" && command.text === "投毒" && <img className="poison-icon" src={POISON_ICON_URL} alt="" aria-hidden="true" />}{poisonFailureText}</span>;
               })}</p> : null;
             })}

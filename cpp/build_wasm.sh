@@ -10,7 +10,7 @@ mkdir -p "$OUT"
 
 em++ -std=c++17 -O3 --no-entry \
     "$ROOT/cpp/name_arena.cpp" \
-    -sMODULARIZE=1 -sEXPORT_ES6=1 -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=83886080 \
+    -sMODULARIZE=1 -sEXPORT_ES6=1 -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=100663296 \
     -sEXPORTED_FUNCTIONS='["_name_arena_player_snapshot","_name_arena_simulate_battle"]' \
     -sEXPORTED_RUNTIME_METHODS='["ccall","cwrap"]' \
     -o "$OUT/name_arena_core.mjs"

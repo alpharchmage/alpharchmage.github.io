@@ -182,7 +182,7 @@ describe("BattlePlayback life animation integration", () => {
     act(() => vi.runOnlyPendingTimers());
   });
 
-  it("renders purple devour text and restores 30% maximum health to the killer", () => {
+  it("renders purple devour text and restores 15% maximum health to the killer", () => {
     vi.useFakeTimers();
     const devourer = { ...player, hp: 25, name: "吞噬者" };
     const defeated = { ...player, id: 2, teamId: 2, seatId: 2, inputIndex: 2, hp: 5, name: "被吞噬者" };
@@ -195,7 +195,7 @@ describe("BattlePlayback life animation integration", () => {
         { ...command("devour", 0, 0, 25), sourcePlayerId: 1, targetPlayerId: 2, text: "吞噬者", newlineAfter: false },
         { ...command("devour", 16, 0, 25), sourcePlayerId: 1, targetPlayerId: 2, text: "吞噬", newlineAfter: false },
         { ...command("devour", 0, 0, 25), sourcePlayerId: 1, targetPlayerId: 2, text: "被吞噬者 吞噬者 ", newlineAfter: false },
-        { ...command("devour_heal", 4, 30, 55), sourcePlayerId: 1, targetPlayerId: 1, text: "恢复30%生命", newlineAfter: true },
+        { ...command("devour_heal", 4, 15, 40), sourcePlayerId: 1, targetPlayerId: 1, text: "恢复15%生命", newlineAfter: true },
       ],
     };
     const { container } = render(<BattlePlayback battle={devourBattle} onRestart={() => {}} />);
@@ -204,15 +204,16 @@ describe("BattlePlayback life animation integration", () => {
     act(() => vi.advanceTimersByTime(0));
 
     const devourerUnit = Array.from(container.querySelectorAll<HTMLElement>(".unit-readout")).find((unit) => unit.textContent?.includes("吞噬者"));
-    expect(container.querySelectorAll(".battle-line")[1]?.textContent).toBe("吞噬者吞噬被吞噬者 吞噬者 恢复30%生命");
+    expect(container.querySelectorAll(".battle-line")[1]?.textContent).toBe("吞噬者吞噬被吞噬者 吞噬者 恢复15%生命");
     expect(container.querySelector(".tone-life-wheel")?.textContent).toBe("吞噬");
     expect(devourerUnit?.querySelector(".hp-heal")).not.toBeNull();
-    expect(devourerUnit?.querySelector(".hp-values")?.textContent).toContain("55/100");
+    expect(devourerUnit?.querySelector(".hp-values")?.textContent).toContain("40/100");
   });
 
-  it("uses faster animations with deeper poison purple and denser health rows", () => {
+  it("keeps faster animations and poison styling while compacting left-side health rows", () => {
     const css = readFileSync(resolve(process.cwd(), "client/src/index.css"), "utf8");
-    expect(css).toContain("gap: 9px; padding: 7px 12px");
+    expect(css).toContain("gap: 8px; padding: 10px 24px");
+    expect(css).toContain(".unit-readout { display: grid; gap: 2px; padding: 6px 12px; }");
     expect(css).toContain("height: 6px");
     expect(css).toContain("background: #9e72d1");
     expect(css).toContain("transition: transform .12s cubic-bezier");
@@ -531,6 +532,71 @@ describe("BattlePlayback life animation integration", () => {
     expect(container.querySelector(".tone-heal")?.textContent).toBe("10");
     expect(caster?.querySelector(".hp-heal")).not.toBeNull();
     expect(target?.querySelector(".hp-loss")).not.toBeNull();
+  });
+
+  it("renders Galahad One's red slash and restores the scientific witch by the full dealt damage", () => {
+    vi.useFakeTimers();
+    const witch = { ...player, id: 2, teamId: 1, seatId: 2, inputIndex: 2, name: "科学性实验魔女", hp: 2800, maxHp: 3000, physicalAttack: 0, physicalDefense: 0, magicAttack: 250, magicDefense: 100, speed: 3000, isFamiliar: true, ownerPlayerId: 1 };
+    const galahad = { ...player, id: 4, teamId: 1, seatId: 4, inputIndex: 4, name: "加拉哈德1号", hp: 5000, maxHp: 5000, physicalAttack: 200, physicalDefense: 0, magicAttack: 180, magicDefense: 0, speed: 2500, isFamiliar: true, ownerPlayerId: 2 };
+    const enemy = { ...player, id: 5, teamId: 2, seatId: 5, inputIndex: 5, name: "敌方", hp: 1000, maxHp: 1000 };
+    const galahadSlashBattle: CppBattleSimulationResponse = {
+      ...battle,
+      initialPlayers: [{ ...player, id: 1, name: "mili", hp: 3000, maxHp: 3000 }, witch, galahad, enemy],
+      finalPlayers: [{ ...player, id: 1, name: "mili", hp: 3000, maxHp: 3000 }, { ...witch, hp: 3000 }, galahad, { ...enemy, hp: 800 }],
+      commands: [
+        { ...command("galahad_slash", 0, 0, 1000), sourcePlayerId: 4, targetPlayerId: 5, text: "加拉哈德1号 ", newlineAfter: false },
+        { ...command("galahad_slash", 3, 0, 1000), sourcePlayerId: 4, targetPlayerId: 5, text: "斩击", newlineAfter: false },
+        { ...command("galahad_slash", 0, 0, 1000), sourcePlayerId: 4, targetPlayerId: 5, text: "敌方，敌方受到", newlineAfter: false },
+        { ...command("galahad_slash_damage", 3, 200, 800), sourcePlayerId: 4, targetPlayerId: 5, text: "200", newlineAfter: false },
+        { ...command("galahad_slash_damage", 0, 200, 800), sourcePlayerId: 4, targetPlayerId: 5, text: "伤害", newlineAfter: true },
+        { ...command("galahad_witch_heal", 4, 200, 3000), sourcePlayerId: 4, targetPlayerId: 2, text: "科学性实验魔女恢复", newlineAfter: false },
+        { ...command("galahad_witch_heal", 0, 200, 3000), sourcePlayerId: 4, targetPlayerId: 2, text: "200生命", newlineAfter: true },
+      ],
+    };
+    const { container, unmount } = render(<BattlePlayback battle={galahadSlashBattle} onRestart={() => {}} />);
+    act(() => vi.advanceTimersByTime(0));
+
+    const renderedEnemy = Array.from(container.querySelectorAll<HTMLElement>(".unit-readout")).find((unit) => unit.textContent?.includes("敌方"));
+    expect(renderedEnemy?.querySelector(".hp-loss")).not.toBeNull();
+    expect(container.querySelector(".battle-line")?.textContent).toBe("加拉哈德1号 斩击敌方，敌方受到200伤害");
+    expect(container.querySelector(".tone-damage")?.textContent).toBe("斩击");
+
+    act(() => vi.advanceTimersByTime(110));
+    act(() => vi.advanceTimersByTime(0));
+
+    const units = Array.from(container.querySelectorAll<HTMLElement>(".unit-readout"));
+    const renderedWitch = units.find((unit) => unit.textContent?.includes("科学性实验魔女"));
+    const battleLines = Array.from(container.querySelectorAll(".battle-line")).map((line) => line.textContent);
+    expect(battleLines).toContain("科学性实验魔女恢复200生命");
+    expect(container.querySelector(".tone-heal")?.textContent).toContain("科学性实验魔女恢复");
+    expect(renderedWitch?.querySelector(".hp-heal")).not.toBeNull();
+    unmount();
+  });
+
+  it("does not heal the scientific witch after a blue Galahad laser shot", () => {
+    vi.useFakeTimers();
+    const witch = { ...player, id: 2, teamId: 1, seatId: 2, inputIndex: 2, name: "科学性实验魔女", hp: 700, maxHp: 1000 };
+    const galahad = { ...player, id: 4, teamId: 1, seatId: 4, inputIndex: 4, name: "加拉哈德1号", hp: 1200, maxHp: 1200 };
+    const enemy = { ...player, id: 5, teamId: 2, seatId: 5, inputIndex: 5, name: "敌方", hp: 1000, maxHp: 1000 };
+    const laserBattle: CppBattleSimulationResponse = {
+      ...battle,
+      initialPlayers: [witch, galahad, enemy],
+      finalPlayers: [witch, galahad, { ...enemy, hp: 700, burnStrength: 30, burnLayers: 2 }],
+      commands: [
+        { ...command("galahad_laser", 0, 0, 1000), sourcePlayerId: 4, targetPlayerId: 5, text: "加拉哈德1号 ", newlineAfter: false },
+        { ...command("galahad_laser", 7, 0, 1000), sourcePlayerId: 4, targetPlayerId: 5, text: "激光枪射击", newlineAfter: false },
+        { ...command("galahad_laser", 0, 0, 1000), sourcePlayerId: 4, targetPlayerId: 5, text: "敌方，敌方受到", newlineAfter: false },
+        { ...command("galahad_laser_damage", 3, 300, 700), sourcePlayerId: 4, targetPlayerId: 5, text: "300", newlineAfter: false },
+        { ...command("galahad_laser_damage", 0, 300, 700), sourcePlayerId: 4, targetPlayerId: 5, text: "伤害", newlineAfter: true },
+      ],
+    };
+    const { container, unmount } = render(<BattlePlayback battle={laserBattle} onRestart={() => {}} />);
+    act(() => vi.advanceTimersByTime(0));
+    expect(container.querySelector(".tone-thunder")?.textContent).toBe("激光枪射击");
+    expect(container.querySelector(".tone-heal")).toBeNull();
+    expect(container.querySelector(".galahad_witch_heal")).toBeNull();
+    expect(Array.from(container.querySelectorAll<HTMLElement>(".unit-readout")).find((unit) => unit.textContent?.includes("科学性实验魔女"))?.querySelector(".hp-heal")).toBeNull();
+    unmount();
   });
 
   it("renders orange fireball and burn removal while synchronizing both damage events", () => {
@@ -958,7 +1024,29 @@ describe("BattlePlayback life animation integration", () => {
     expect(statusCss).toContain(".unit-statuses { display: inline-flex; flex: 0 1 auto;");
   });
 
-  it("renders a cyan summon with a purple familiar directly below its owner, then removes the familiar when its owner dies", () => {
+  it("renders mili's visible-name silver milk heal as one line", () => {
+    vi.useFakeTimers();
+    const mili = { ...player, name: "mili", hp: 2100, maxHp: 3000, physicalAttack: 200, physicalDefense: 45, magicAttack: 200, magicDefense: 50, speed: 2000 };
+    const milkBattle: CppBattleSimulationResponse = {
+      ...battle,
+      initialPlayers: [mili],
+      finalPlayers: [{ ...mili, hp: 3000 }],
+      commands: [
+        { ...command("mili_milk", 0, 0, 3000), skillId: 27, text: "mili饮用", newlineAfter: false },
+        { ...command("mili_milk", 10, 0, 3000), skillId: 27, text: "双岛牛奶!! mili恢复", newlineAfter: false },
+        { ...command("heal", 4, 900, 3000), skillId: 27, text: "30%血量", newlineAfter: true },
+      ],
+    };
+    const { container } = render(<BattlePlayback battle={milkBattle} onRestart={() => {}} />);
+    act(() => vi.advanceTimersByTime(0));
+    expect(container.querySelector(".unit-name")?.textContent).toBe("mili");
+    expect(container.querySelector(".tone-ironwall")?.textContent).toBe("双岛牛奶!! mili恢复");
+    expect(container.querySelector(".tone-heal")?.textContent).toBe("30%血量");
+    expect(container.querySelector(".battle-line")?.textContent).toBe("mili饮用双岛牛奶!! mili恢复30%血量");
+    act(() => vi.runOnlyPendingTimers());
+  });
+
+  it("allows multiple cyan summons below one owner, then removes every familiar when the owner dies", () => {
     vi.useFakeTimers();
     const owner = { ...player, id: 1, teamId: 1, seatId: 1, inputIndex: 1, name: "召唤者", hp: 100 };
     const enemy = { ...player, id: 2, teamId: 2, seatId: 2, inputIndex: 2, name: "敌人", hp: 100 };
@@ -967,10 +1055,11 @@ describe("BattlePlayback life animation integration", () => {
       physicalAttack: 80, physicalDefense: 20, magicAttack: 0, magicDefense: 20, wisdom: 0, speed: 1500,
       isFamiliar: true, ownerPlayerId: 1, magicVulnerability: 20, alive: false,
     };
+    const secondFamiliar = { ...familiar, id: 4, seatId: 4, inputIndex: 4 };
     const summonBattle: CppBattleSimulationResponse = {
       ...battle,
       initialPlayers: [owner, enemy],
-      finalPlayers: [{ ...owner, hp: 0, alive: false }, enemy, familiar],
+      finalPlayers: [{ ...owner, hp: 0, alive: false }, enemy, familiar, secondFamiliar],
       commands: [
         { ...command("mana_cost", 0, 40, 160), sourcePlayerId: 1, targetPlayerId: 1, text: "", newlineAfter: false },
         { ...command("summon", 0, 0, 100), sourcePlayerId: 1, targetPlayerId: 3, text: "召唤者 ", newlineAfter: false },
@@ -978,9 +1067,15 @@ describe("BattlePlayback life animation integration", () => {
         { ...command("summon", 0, 0, 100), sourcePlayerId: 1, targetPlayerId: 3, text: " 出了 ", newlineAfter: false },
         { ...command("summon", 16, 0, 100), sourcePlayerId: 1, targetPlayerId: 3, text: "幻魔", newlineAfter: false },
         { ...command("summon_spawn", 0, 0, 150), sourcePlayerId: 1, targetPlayerId: 3, text: "", newlineAfter: true },
+        { ...command("summon", 0, 0, 100), sourcePlayerId: 1, targetPlayerId: 4, text: "召唤者 ", newlineAfter: false },
+        { ...command("summon", 17, 0, 100), sourcePlayerId: 1, targetPlayerId: 4, text: "召唤", newlineAfter: false },
+        { ...command("summon", 0, 0, 100), sourcePlayerId: 1, targetPlayerId: 4, text: " 出了 ", newlineAfter: false },
+        { ...command("summon", 16, 0, 100), sourcePlayerId: 1, targetPlayerId: 4, text: "幻魔", newlineAfter: false },
+        { ...command("summon_spawn", 0, 0, 150), sourcePlayerId: 1, targetPlayerId: 4, text: "", newlineAfter: true },
         { ...command("normal_attack", 0, 0, 100), sourcePlayerId: 3, targetPlayerId: 2, text: "幻魔发起攻击", newlineAfter: true },
         { ...command("death", 1, 0, 0), sourcePlayerId: 2, targetPlayerId: 1, text: "召唤者消失了", newlineAfter: true },
         { ...command("familiar_depart", 1, 0, 0), sourcePlayerId: 1, targetPlayerId: 3, text: "幻魔随本体消失了", newlineAfter: true },
+        { ...command("familiar_depart", 1, 0, 0), sourcePlayerId: 1, targetPlayerId: 4, text: "幻魔随本体消失了", newlineAfter: true },
       ],
     };
     const { container } = render(<BattlePlayback battle={summonBattle} onRestart={() => {}} />);
@@ -998,16 +1093,451 @@ describe("BattlePlayback life animation integration", () => {
     expect(ownerSlotUnits?.[1]?.querySelector(".unit-status-magic-vuln b")?.textContent).toBe("20/∞");
 
     act(() => vi.advanceTimersByTime(150));
+    const afterSecondSummonUnits = ownerSlot?.querySelectorAll<HTMLElement>(".unit-readout");
+    expect(afterSecondSummonUnits).toHaveLength(3);
+    expect(Array.from(afterSecondSummonUnits ?? []).filter((unit) => unit.classList.contains("is-familiar"))).toHaveLength(2);
+
+    act(() => vi.advanceTimersByTime(64));
     expect(Array.from(container.querySelectorAll(".battle-line")).at(-1)?.textContent).toBe("幻魔发起攻击");
 
     act(() => vi.advanceTimersByTime(64));
     const afterOwnerDeathUnits = ownerSlot?.querySelectorAll<HTMLElement>(".unit-readout");
     expect(afterOwnerDeathUnits?.[0]?.classList.contains("is-defeated")).toBe(true);
     expect(afterOwnerDeathUnits?.[1]?.classList.contains("is-defeated")).toBe(false);
+    expect(afterOwnerDeathUnits?.[2]?.classList.contains("is-defeated")).toBe(false);
 
     act(() => vi.advanceTimersByTime(64));
     const afterFamiliarDeathUnits = ownerSlot?.querySelectorAll<HTMLElement>(".unit-readout");
     expect(afterFamiliarDeathUnits?.[1]?.classList.contains("is-defeated")).toBe(true);
+    expect(afterFamiliarDeathUnits?.[2]?.classList.contains("is-defeated")).toBe(false);
+
+    for (let index = 0; index < 3; index += 1) {
+      act(() => vi.advanceTimersByTime(110));
+      act(() => vi.advanceTimersByTime(0));
+    }
+    const afterAllFamiliarDeaths = ownerSlot?.querySelectorAll<HTMLElement>(".unit-readout");
+    expect(afterAllFamiliarDeaths?.[2]?.classList.contains("is-defeated")).toBe(true);
+    act(() => vi.runOnlyPendingTimers());
+  });
+
+  it("summons a moon child that chants for the mili team and chants once more on death", () => {
+    vi.useFakeTimers();
+    const mili = { ...player, id: 1, teamId: 1, seatId: 1, inputIndex: 1, name: "mili", hp: 2000, maxHp: 3000 };
+    const ally = { ...player, id: 2, teamId: 1, seatId: 2, inputIndex: 2, name: "同阵营", hp: 500, maxHp: 1000 };
+    const moonChild = {
+      ...player, id: 3, teamId: 1, seatId: 3, inputIndex: 3, name: "月之子", hp: 0, maxHp: 50,
+      physicalAttack: 100, physicalDefense: -50, magicAttack: 0, magicDefense: 0, wisdom: 0, speed: 2500,
+      isFamiliar: true, ownerPlayerId: 1, alive: false,
+    };
+    const enemy = { ...player, id: 4, teamId: 2, seatId: 4, inputIndex: 4, name: "敌人", hp: 100 };
+    const moonBattle: CppBattleSimulationResponse = {
+      ...battle,
+      initialPlayers: [mili, ally, enemy],
+      finalPlayers: [{ ...mili, hp: 2120 }, { ...ally, hp: 540 }, moonChild, enemy],
+      commands: [
+        { ...command("moon_summon", 0, 0, 50), sourcePlayerId: 1, targetPlayerId: 3, text: "mili召唤出了", newlineAfter: false },
+        { ...command("moon_summon", 16, 0, 50), sourcePlayerId: 1, targetPlayerId: 3, text: "月之子", newlineAfter: true },
+        { ...command("moon_chant", 0, 0, 2060), sourcePlayerId: 3, targetPlayerId: 1, text: "月之子", newlineAfter: false },
+        { ...command("moon_chant", 16, 0, 2060), sourcePlayerId: 3, targetPlayerId: 1, text: "吟唱，", newlineAfter: false },
+        { ...command("moon_chant", 0, 0, 2060), sourcePlayerId: 3, targetPlayerId: 1, text: "为全体恢复2%血量", newlineAfter: true },
+        { ...command("status_sync", 0, 0, 2060), sourcePlayerId: 3, targetPlayerId: 1, text: "", newlineAfter: true },
+        { ...command("status_sync", 0, 0, 520), sourcePlayerId: 3, targetPlayerId: 2, text: "", newlineAfter: true },
+        { ...command("death", 1, 0, 0), sourcePlayerId: 4, targetPlayerId: 3, text: "月之子消失了", newlineAfter: true },
+        { ...command("moon_chant", 0, 0, 2120), sourcePlayerId: 3, targetPlayerId: 1, text: "月之子", newlineAfter: false },
+        { ...command("moon_chant", 16, 0, 2120), sourcePlayerId: 3, targetPlayerId: 1, text: "吟唱，", newlineAfter: false },
+        { ...command("moon_chant", 0, 0, 2120), sourcePlayerId: 3, targetPlayerId: 1, text: "为全体恢复2%血量", newlineAfter: true },
+        { ...command("status_sync", 0, 0, 2120), sourcePlayerId: 3, targetPlayerId: 1, text: "", newlineAfter: true },
+        { ...command("status_sync", 0, 0, 540), sourcePlayerId: 3, targetPlayerId: 2, text: "", newlineAfter: true },
+      ],
+    };
+    const { container } = render(<BattlePlayback battle={moonBattle} onRestart={() => {}} />);
+    act(() => vi.advanceTimersByTime(0));
+    expect(container.querySelector(".tone-life-wheel")?.textContent).toBe("月之子");
+    expect(container.querySelector(".battle-line")?.textContent).toBe("mili召唤出了月之子");
+    for (let index = 0; index < 12; index += 1) {
+      act(() => vi.advanceTimersByTime(110));
+      act(() => vi.advanceTimersByTime(0));
+    }
+    const battleLines = Array.from(container.querySelectorAll(".battle-line")).map((line) => line.textContent);
+    expect(battleLines.filter((line) => line === "月之子吟唱，为全体恢复2%血量")).toHaveLength(2);
+    expect(battleLines).toContain("月之子消失了");
+    expect(battleLines.join("\n")).not.toContain("？？？恢复");
+    act(() => vi.runOnlyPendingTimers());
+  });
+
+  it("summons the scientific witch and Lancelot zero immediately, then keeps both special modes under normal attack text", () => {
+    vi.useFakeTimers();
+    const mili = { ...player, id: 1, teamId: 1, seatId: 1, inputIndex: 1, name: "mili", hp: 3000, maxHp: 3000 };
+    const enemy = { ...player, id: 2, teamId: 2, seatId: 2, inputIndex: 2, name: "敌人", hp: 90, maxHp: 100, freezeStrength: 1, freezeLayers: 1, burnStrength: 20, burnLayers: 1 };
+    const witch = {
+      ...player, id: 3, teamId: 1, seatId: 3, inputIndex: 3, name: "科学性实验魔女", hp: 3000, maxHp: 3000,
+      physicalAttack: 0, physicalDefense: 0, magicAttack: 250, magicDefense: 100, wisdom: 0, speed: 3000,
+      isFamiliar: true, ownerPlayerId: 1,
+    };
+    const lancelot = {
+      ...player, id: 4, teamId: 1, seatId: 4, inputIndex: 4, name: "兰斯洛特0号", hp: 20000, maxHp: 20000,
+      physicalAttack: 150, physicalDefense: 100, magicAttack: 0, magicDefense: 0, wisdom: 0, speed: 2000,
+      isFamiliar: true, ownerPlayerId: 3,
+    };
+    const witchBattle: CppBattleSimulationResponse = {
+      ...battle,
+      initialPlayers: [mili, enemy],
+      finalPlayers: [mili, enemy, witch, lancelot],
+      commands: [
+        { ...command("witch_summon", 0, 0, 3000), sourcePlayerId: 1, targetPlayerId: 3, text: "mili召唤出了", newlineAfter: false },
+        { ...command("witch_summon", 10, 0, 3000), sourcePlayerId: 1, targetPlayerId: 3, text: "科学性实验魔女", newlineAfter: false },
+        { ...command("summon_spawn", 0, 0, 3000), sourcePlayerId: 1, targetPlayerId: 3, text: "", newlineAfter: true },
+        { ...command("lancelot_summon", 0, 0, 20000), sourcePlayerId: 3, targetPlayerId: 4, text: "科学性实验魔女召唤出了", newlineAfter: false },
+        { ...command("lancelot_summon", 16, 0, 20000), sourcePlayerId: 3, targetPlayerId: 4, text: "兰斯洛特0号", newlineAfter: false },
+        { ...command("summon_spawn", 0, 0, 20000), sourcePlayerId: 3, targetPlayerId: 4, text: "", newlineAfter: true },
+        { ...command("normal_attack", 0, 0, 100), sourcePlayerId: 4, targetPlayerId: 2, text: "兰斯洛特0号发起攻击，敌人受到", newlineAfter: false },
+        { ...command("normal_attack_damage", 3, 10, 90), sourcePlayerId: 4, targetPlayerId: 2, text: "10", newlineAfter: false },
+        { ...command("normal_attack_damage", 0, 10, 90), sourcePlayerId: 4, targetPlayerId: 2, text: "伤害", newlineAfter: true, freezeStrength: 1, freezeLayers: 1 },
+        { ...command("status_sync", 0, 0, 90), sourcePlayerId: 4, targetPlayerId: 2, text: "", newlineAfter: true, freezeStrength: 1, freezeLayers: 1 },
+        { ...command("normal_attack", 0, 0, 90), sourcePlayerId: 4, targetPlayerId: 2, text: "兰斯洛特0号发起攻击", newlineAfter: true, burnStrength: 20, burnLayers: 1 },
+      ],
+    };
+    const { container } = render(<BattlePlayback battle={witchBattle} onRestart={() => {}} />);
+    act(() => vi.advanceTimersByTime(0));
+    for (let index = 0; index < 14; index += 1) {
+      act(() => vi.advanceTimersByTime(110));
+      act(() => vi.advanceTimersByTime(0));
+    }
+    const battleLines = Array.from(container.querySelectorAll(".battle-line")).map((line) => line.textContent);
+    expect(battleLines).toContain("mili召唤出了科学性实验魔女");
+    expect(battleLines).toContain("科学性实验魔女召唤出了兰斯洛特0号");
+    expect(battleLines).toContain("兰斯洛特0号发起攻击，敌人受到10伤害");
+    expect(battleLines).toContain("兰斯洛特0号发起攻击");
+    expect(battleLines.join("\n")).not.toContain("兰斯洛特0号冰冻");
+    expect(battleLines.join("\n")).not.toContain("兰斯洛特0号烧伤");
+    const ownerSlotUnits = container.querySelector(".unit-owner-slot")?.querySelectorAll<HTMLElement>(".unit-readout");
+    expect(ownerSlotUnits).toHaveLength(3);
+    expect(ownerSlotUnits?.[1]?.textContent).toContain("科学性实验魔女");
+    expect(ownerSlotUnits?.[2]?.textContent).toContain("兰斯洛特0号");
+    act(() => vi.runOnlyPendingTimers());
+  });
+
+  it("brews rebirth potion three times, sings the four-line ritual, and transforms scrap into Galahad One", () => {
+    vi.useFakeTimers();
+    const mili = { ...player, id: 1, teamId: 1, seatId: 1, inputIndex: 1, name: "mili", hp: 3000, maxHp: 3000 };
+    const witch = {
+      ...player, id: 2, teamId: 1, seatId: 2, inputIndex: 2, name: "科学性实验魔女", hp: 3000, maxHp: 3000,
+      physicalAttack: 0, physicalDefense: 0, magicAttack: 250, magicDefense: 100, wisdom: 0, speed: 3000,
+      isFamiliar: true, ownerPlayerId: 1,
+    };
+    const lancelot = {
+      ...player, id: 3, teamId: 1, seatId: 3, inputIndex: 3, name: "兰斯洛特0号", hp: 0, maxHp: 800,
+      physicalAttack: 150, physicalDefense: 100, magicAttack: 0, magicDefense: 0, wisdom: 0, speed: 2000,
+      isFamiliar: true, ownerPlayerId: 2, alive: false,
+    };
+    const galahad = {
+      ...player, id: 4, teamId: 1, seatId: 4, inputIndex: 4, name: "加拉哈德1号", hp: 1200, maxHp: 1200,
+      physicalAttack: 160, physicalDefense: 0, magicAttack: 180, magicDefense: 0, wisdom: 0, speed: 2500,
+      isFamiliar: true, ownerPlayerId: 2,
+    };
+    const enemy = { ...player, id: 5, teamId: 2, seatId: 5, inputIndex: 5, name: "敌人" };
+    const potionCast = (text: string, renderTone: number, newlineAfter: boolean) => ({
+      ...command("rebirth_potion", renderTone, 0, 3000), sourcePlayerId: 2, targetPlayerId: 2, text, newlineAfter,
+    });
+    const potionBattle: CppBattleSimulationResponse = {
+      ...battle,
+      initialPlayers: [mili, witch, lancelot, enemy],
+      finalPlayers: [mili, witch, lancelot, galahad, enemy],
+      commands: [
+        { ...command("death", 1, 0, 0), sourcePlayerId: 5, targetPlayerId: 3, text: "兰斯洛特0号消失了", newlineAfter: true, alive: false },
+        { ...command("broken_lancelot_summon", 0, 0, 800), sourcePlayerId: 2, targetPlayerId: 4, text: "兰斯洛特0号变成了废铁!", newlineAfter: false, playerName: "破烂的兰斯洛特0号", playerMaxHp: 800, playerPhysicalAttack: 0, playerPhysicalDefense: -20, playerMagicAttack: 0, playerMagicDefense: 0, playerSpeed: 0 },
+        { ...command("summon_spawn", 0, 0, 800), sourcePlayerId: 2, targetPlayerId: 4, text: "", newlineAfter: true, playerName: "破烂的兰斯洛特0号", playerMaxHp: 800, playerPhysicalAttack: 0, playerPhysicalDefense: -20, playerMagicAttack: 0, playerMagicDefense: 0, playerSpeed: 0 },
+        potionCast("科学性实验魔女开始调制重生药水，Lulila talila~~~", 4, true),
+        potionCast("科学性实验魔女开始调制重生药水，Lulila talila~~~", 4, true),
+        potionCast("the magic potion of reanimation~~~", 4, true),
+        potionCast("rise from bed my darling~~~", 4, true),
+        potionCast("so I can see you again ~~~", 4, true),
+        potionCast("so I can kill you again", 4, true),
+        { ...command("familiar_transform", 4, 1200, 1200), sourcePlayerId: 2, targetPlayerId: 4, text: "加拉哈德1号复活了", newlineAfter: true, alive: true, playerName: "加拉哈德1号", playerMaxHp: 1200, playerPhysicalAttack: 160, playerPhysicalDefense: 0, playerMagicAttack: 180, playerMagicDefense: 0, playerSpeed: 2500 },
+      ],
+    };
+    const { container } = render(<BattlePlayback battle={potionBattle} onRestart={() => {}} />);
+    act(() => vi.advanceTimersByTime(0));
+    for (let index = 0; index < 14; index += 1) {
+      act(() => vi.advanceTimersByTime(110));
+      act(() => vi.advanceTimersByTime(0));
+    }
+    const battleLines = Array.from(container.querySelectorAll(".battle-line")).map((line) => line.textContent);
+    expect(battleLines).toContain("兰斯洛特0号变成了废铁!");
+    expect(battleLines).toContain("科学性实验魔女开始调制重生药水，Lulila talila~~~");
+    expect(battleLines).toContain("the magic potion of reanimation~~~");
+    expect(battleLines).toContain("rise from bed my darling~~~");
+    expect(battleLines).toContain("so I can see you again ~~~");
+    expect(battleLines).toContain("so I can kill you again");
+    expect(battleLines).toContain("加拉哈德1号复活了");
+    const unitNames = Array.from(container.querySelectorAll<HTMLElement>(".unit-name")).map((element) => element.textContent);
+    expect(unitNames).toContain("加拉哈德1号");
+    expect(unitNames).not.toContain("破烂的兰斯洛特0号");
+    const galahadReadout = Array.from(container.querySelectorAll<HTMLElement>(".unit-readout")).find((element) => element.querySelector(".unit-name")?.textContent === "加拉哈德1号");
+    expect(galahadReadout?.querySelector(".hp-values")?.textContent).toContain("1200/1200");
+    expect(galahadReadout?.classList.contains("is-defeated")).toBe(false);
+    act(() => vi.runOnlyPendingTimers());
+  });
+
+  it("renders all three scientific witch thresholds and three distinct blue laser targets without healing", () => {
+    vi.useFakeTimers();
+    const witch = { ...player, id: 2, teamId: 1, seatId: 2, inputIndex: 2, name: "科学性实验魔女", hp: 90, maxHp: 100 };
+    const galahad = { ...player, id: 3, teamId: 1, seatId: 3, inputIndex: 3, name: "加拉哈德1号", hp: 1200, maxHp: 1200, physicalAttack: 160, physicalDefense: 100, magicDefense: 100 };
+    const enemies = [
+      { ...player, id: 4, teamId: 2, seatId: 4, inputIndex: 4, name: "敌人甲", hp: 1000, maxHp: 1000 },
+      { ...player, id: 5, teamId: 2, seatId: 5, inputIndex: 5, name: "敌人乙", hp: 1000, maxHp: 1000 },
+      { ...player, id: 6, teamId: 2, seatId: 6, inputIndex: 6, name: "敌人丙", hp: 1000, maxHp: 1000 },
+    ];
+    const phaseBattle: CppBattleSimulationResponse = {
+      ...battle,
+      initialPlayers: [witch, galahad, ...enemies],
+      finalPlayers: [witch, galahad, { ...enemies[0], hp: 700 }, { ...enemies[1], hp: 700 }, { ...enemies[2], hp: 700 }],
+      commands: [
+        { ...command("witch_phase_50", 16, 0, 90), sourcePlayerId: 2, targetPlayerId: 3, text: "科学性实验魔女使用加拉哈德你永远不会倒下", newlineAfter: true },
+        { ...command("witch_phase_30", 16, 0, 90), sourcePlayerId: 2, targetPlayerId: 3, text: "科学性实验魔女使用talila tulila，加拉哈德1号属性提升", newlineAfter: true },
+        { ...command("witch_phase_10", 16, 0, 90), sourcePlayerId: 2, targetPlayerId: 3, text: "科学性实验魔女使用多路化，加拉哈德1号的激光枪指向三个敌人", newlineAfter: true },
+        { ...command("galahad_laser", 7, 0, 1200), sourcePlayerId: 3, targetPlayerId: 4, text: "加拉哈德1号 激光枪射击敌人甲，敌人甲受到", newlineAfter: false },
+        { ...command("galahad_laser_damage", 3, 300, 700), sourcePlayerId: 3, targetPlayerId: 4, text: "300", newlineAfter: true },
+        { ...command("galahad_laser", 7, 0, 1200), sourcePlayerId: 3, targetPlayerId: 5, text: "加拉哈德1号 激光枪射击敌人乙，敌人乙受到", newlineAfter: false },
+        { ...command("galahad_laser_damage", 3, 300, 700), sourcePlayerId: 3, targetPlayerId: 5, text: "300", newlineAfter: true },
+        { ...command("galahad_laser", 7, 0, 1200), sourcePlayerId: 3, targetPlayerId: 6, text: "加拉哈德1号 激光枪射击敌人丙，敌人丙受到", newlineAfter: false },
+        { ...command("galahad_laser_damage", 3, 300, 700), sourcePlayerId: 3, targetPlayerId: 6, text: "300", newlineAfter: true },
+      ],
+    };
+    const { container, unmount } = render(<BattlePlayback battle={phaseBattle} onRestart={() => {}} />);
+    act(() => vi.advanceTimersByTime(0));
+    for (let index = 0; index < 12; index += 1) {
+      act(() => vi.advanceTimersByTime(110));
+      act(() => vi.advanceTimersByTime(0));
+    }
+    const battleText = container.textContent ?? "";
+    expect(battleText).toContain("加拉哈德你永远不会倒下");
+    expect(battleText).toContain("talila tulila");
+    expect(battleText).toContain("多路化");
+    expect(container.querySelectorAll(".tone-thunder")).toHaveLength(3);
+    expect(container.querySelectorAll(".tone-heal")).toHaveLength(0);
+    expect(battleText).not.toContain("恢复");
+    unmount();
+  });
+
+  it("renders K-2's silver summon, red iron-blood lotus, and an extra enemy burn tick", () => {
+    vi.useFakeTimers();
+    const mili = { ...player, id: 1, teamId: 1, seatId: 1, inputIndex: 1, name: "mili", hp: 3000, maxHp: 3000 };
+    const enemy = { ...player, id: 2, teamId: 2, seatId: 2, inputIndex: 2, name: "敌人", hp: 98, maxHp: 100 };
+    const k2 = {
+      ...player, id: 3, teamId: 1, seatId: 3, inputIndex: 3, name: "K-2", hp: 500, maxHp: 500,
+      physicalAttack: 150, physicalDefense: 25, magicAttack: 0, magicDefense: 0, wisdom: 0, speed: 1500,
+      isFamiliar: true, ownerPlayerId: 1,
+    };
+    const k2Battle: CppBattleSimulationResponse = {
+      ...battle,
+      initialPlayers: [mili, enemy],
+      finalPlayers: [{ ...mili, burnStrength: 2, burnLayers: 10 }, { ...enemy, hp: 96, burnStrength: 2, burnLayers: 9 }, { ...k2, burnStrength: 2, burnLayers: 10 }],
+      commands: [
+        { ...command("k2_summon", 0, 0, 500), sourcePlayerId: 1, targetPlayerId: 3, text: "mili召唤出了", newlineAfter: false },
+        { ...command("k2_summon", 10, 0, 500), sourcePlayerId: 1, targetPlayerId: 3, text: "K-2", newlineAfter: true },
+        { ...command("summon_spawn", 0, 0, 500), sourcePlayerId: 1, targetPlayerId: 3, text: "", newlineAfter: true },
+        { ...command("iron_blood_lotus", 0, 0, 3000), sourcePlayerId: 3, targetPlayerId: 1, text: "K-2使用", newlineAfter: false },
+        { ...command("iron_blood_lotus", 3, 0, 3000), sourcePlayerId: 3, targetPlayerId: 1, text: "Iron Lotus", newlineAfter: false },
+        { ...command("iron_blood_lotus", 0, 0, 3000), sourcePlayerId: 3, targetPlayerId: 1, text: "，对全体施加1级5层烧伤", newlineAfter: true },
+        { ...command("status_sync", 0, 0, 3000), sourcePlayerId: 3, targetPlayerId: 1, text: "", newlineAfter: true, burnStrength: 1, burnLayers: 5 },
+        { ...command("status_sync", 0, 0, 98), sourcePlayerId: 3, targetPlayerId: 2, text: "", newlineAfter: true, burnStrength: 1, burnLayers: 5 },
+        { ...command("status_sync", 0, 0, 500), sourcePlayerId: 3, targetPlayerId: 3, text: "", newlineAfter: true, burnStrength: 1, burnLayers: 5 },
+        { ...command("iron_blood_lotus", 0, 0, 500), sourcePlayerId: 3, targetPlayerId: 3, text: "K-2使用", newlineAfter: false },
+        { ...command("iron_blood_lotus", 3, 0, 500), sourcePlayerId: 3, targetPlayerId: 3, text: "Iron Lotus", newlineAfter: false },
+        { ...command("iron_blood_lotus", 0, 0, 500), sourcePlayerId: 3, targetPlayerId: 3, text: "，对全体施加1级5层烧伤", newlineAfter: true },
+        { ...command("status_sync", 0, 0, 3000), sourcePlayerId: 3, targetPlayerId: 1, text: "", newlineAfter: true, burnStrength: 2, burnLayers: 10 },
+        { ...command("status_sync", 0, 0, 98), sourcePlayerId: 3, targetPlayerId: 2, text: "", newlineAfter: true, burnStrength: 2, burnLayers: 10 },
+        { ...command("status_sync", 0, 0, 500), sourcePlayerId: 3, targetPlayerId: 3, text: "", newlineAfter: true, burnStrength: 2, burnLayers: 10 },
+        { ...command("k2_burn", 13, 0, 500), sourcePlayerId: 3, targetPlayerId: 3, text: "K-2令全体再次烧伤", newlineAfter: true },
+        { ...command("status_sync", 0, 0, 96), sourcePlayerId: 3, targetPlayerId: 2, text: "", newlineAfter: true, burnStrength: 2, burnLayers: 9 },
+      ],
+    };
+    const { container } = render(<BattlePlayback battle={k2Battle} onRestart={() => {}} />);
+    act(() => vi.advanceTimersByTime(0));
+    for (let index = 0; index < 20; index += 1) {
+      act(() => vi.advanceTimersByTime(110));
+      act(() => vi.advanceTimersByTime(0));
+    }
+    expect(container.querySelector(".tone-ironwall")?.textContent).toBe("K-2");
+    const battleLines = Array.from(container.querySelectorAll(".battle-line")).map((line) => line.textContent);
+    expect(battleLines).toContain("mili召唤出了K-2");
+    expect(battleLines).toContain("K-2使用Iron Lotus，对全体施加1级5层烧伤");
+    expect(battleLines).toContain("K-2令全体再次烧伤");
+    expect(battleLines.join("\n")).not.toContain("敌人再次受到");
+    expect(container.querySelector<HTMLElement>('.unit-name[title="烧伤 2/10"]')).toBeNull();
+    expect(container.querySelector<HTMLElement>('.unit-status-burn[title="烧伤 2/9"]')?.textContent).toBe("2/9");
+    expect(container.querySelectorAll(".unit-readout.is-familiar")).toHaveLength(1);
+    expect(Array.from(container.querySelectorAll<HTMLElement>(".unit-readout")).find((unit) => unit.querySelector(".unit-name")?.textContent === "K-2")?.querySelector(".hp-values")?.textContent).toContain("500/500");
+    act(() => vi.runOnlyPendingTimers());
+  });
+
+  it("adds every mili familiar, including the witch's nested Lancelot, to the left-side familiar list", () => {
+    vi.useFakeTimers();
+    const mili = { ...player, id: 1, teamId: 1, seatId: 1, inputIndex: 1, name: "mili", hp: 3000, maxHp: 3000 };
+    const moon = { ...player, id: 2, teamId: 1, seatId: 2, inputIndex: 2, name: "月之子", hp: 50, maxHp: 50, physicalDefense: -50, isFamiliar: true, ownerPlayerId: 1 };
+    const k2 = { ...player, id: 3, teamId: 1, seatId: 3, inputIndex: 3, name: "K-2", hp: 500, maxHp: 500, physicalDefense: 25, isFamiliar: true, ownerPlayerId: 1 };
+    const witch = { ...player, id: 4, teamId: 1, seatId: 4, inputIndex: 4, name: "科学性实验魔女", hp: 1000, maxHp: 1000, isFamiliar: true, ownerPlayerId: 1 };
+    const lancelot = { ...player, id: 5, teamId: 1, seatId: 5, inputIndex: 5, name: "兰斯洛特0号", hp: 800, maxHp: 800, isFamiliar: true, ownerPlayerId: 4 };
+    const familiarBattle: CppBattleSimulationResponse = {
+      ...battle,
+      initialPlayers: [mili],
+      finalPlayers: [mili, moon, k2, witch, lancelot],
+      commands: [
+        { ...command("summon_spawn", 0, 0, 50), sourcePlayerId: 1, targetPlayerId: 2, text: "", newlineAfter: true },
+        { ...command("summon_spawn", 0, 0, 500), sourcePlayerId: 1, targetPlayerId: 3, text: "", newlineAfter: true },
+        { ...command("summon_spawn", 0, 0, 1000), sourcePlayerId: 1, targetPlayerId: 4, text: "", newlineAfter: true },
+        { ...command("summon_spawn", 0, 0, 1000), sourcePlayerId: 1, targetPlayerId: 4, text: "", newlineAfter: true },
+        { ...command("summon_spawn", 0, 0, 800), sourcePlayerId: 4, targetPlayerId: 5, text: "", newlineAfter: true },
+      ],
+    };
+    const { container } = render(<BattlePlayback battle={familiarBattle} onRestart={() => {}} />);
+    act(() => vi.advanceTimersByTime(0));
+    for (let index = 0; index < 8; index += 1) {
+      act(() => vi.advanceTimersByTime(110));
+      act(() => vi.advanceTimersByTime(0));
+    }
+    const names = Array.from(container.querySelectorAll<HTMLElement>(".unit-owner-slot .unit-name")).map((element) => element.textContent);
+    expect(names).toEqual(["mili", "月之子", "K-2", "科学性实验魔女", "兰斯洛特0号"]);
+    expect(container.querySelectorAll(".unit-owner-slot .unit-readout.is-familiar")).toHaveLength(4);
+    act(() => vi.runOnlyPendingTimers());
+  });
+
+  it("removes the witch and her nested Lancelot together when the witch dies", () => {
+    vi.useFakeTimers();
+    const mili = { ...player, id: 1, teamId: 1, seatId: 1, inputIndex: 1, name: "mili" };
+    const witch = { ...player, id: 2, teamId: 1, seatId: 2, inputIndex: 2, name: "科学性实验魔女", hp: 1000, maxHp: 1000, isFamiliar: true, ownerPlayerId: 1 };
+    const lancelot = { ...player, id: 3, teamId: 1, seatId: 3, inputIndex: 3, name: "兰斯洛特0号", hp: 800, maxHp: 800, isFamiliar: true, ownerPlayerId: 2 };
+    const witchDepartureBattle: CppBattleSimulationResponse = {
+      ...battle,
+      initialPlayers: [mili],
+      finalPlayers: [mili],
+      commands: [
+        { ...command("summon_spawn", 0, 0, 1000), sourcePlayerId: 1, targetPlayerId: 2, text: "", newlineAfter: true },
+        { ...command("summon_spawn", 0, 0, 800), sourcePlayerId: 2, targetPlayerId: 3, text: "", newlineAfter: true },
+        { ...command("death", 0, 0, 0), sourcePlayerId: 0, targetPlayerId: 2, text: "科学性实验魔女消失了", newlineAfter: true, alive: false },
+        { ...command("familiar_depart", 0, 0, 0), sourcePlayerId: 2, targetPlayerId: 3, text: "兰斯洛特0号随本体消失了", newlineAfter: true, alive: false },
+        { ...command("familiar_depart", 0, 0, 0), sourcePlayerId: 1, targetPlayerId: 2, text: "科学性实验魔女随本体消失了", newlineAfter: true, alive: false },
+      ],
+    };
+    const { container } = render(<BattlePlayback battle={witchDepartureBattle} onRestart={() => {}} />);
+    act(() => vi.advanceTimersByTime(0));
+    for (let index = 0; index < 10; index += 1) {
+      act(() => vi.advanceTimersByTime(110));
+      act(() => vi.advanceTimersByTime(0));
+    }
+    expect(Array.from(container.querySelectorAll<HTMLElement>(".unit-owner-slot .unit-name")).map((element) => element.textContent)).toEqual(["mili"]);
+    expect(container.textContent).toContain("兰斯洛特0号随本体消失了");
+    act(() => vi.runOnlyPendingTimers());
+  });
+
+  it("renders red Lament with a two-layer mourning badge, then accepts allied and self targets while layers are consumed", () => {
+    vi.useFakeTimers();
+    const mili = { ...player, id: 1, teamId: 1, seatId: 1, inputIndex: 1, name: "mili" };
+    const mourner = { ...player, id: 2, teamId: 2, seatId: 2, inputIndex: 2, name: "哀悼者" };
+    const ally = { ...player, id: 3, teamId: 2, seatId: 3, inputIndex: 3, name: "队友" };
+    const lamentBattle: CppBattleSimulationResponse = {
+      ...battle,
+      initialPlayers: [mili, mourner, ally],
+      finalPlayers: [mili, { ...mourner, hp: 85, lamentLayers: 0 }, { ...ally, hp: 80, lamentLayers: 1 }],
+      commands: [
+        { ...command("lament", 0, 0, 100), sourcePlayerId: 1, targetPlayerId: 2, text: "mili使用", newlineAfter: false, lamentLayers: 2 },
+        { ...command("lament", 3, 0, 100), sourcePlayerId: 1, targetPlayerId: 2, text: "Lament", newlineAfter: false, lamentLayers: 2 },
+        { ...command("lament", 0, 0, 100), sourcePlayerId: 1, targetPlayerId: 2, text: "，哀悼者获得2层", newlineAfter: false, lamentLayers: 2 },
+        { ...command("lament", 3, 0, 100), sourcePlayerId: 1, targetPlayerId: 2, text: "哀悼", newlineAfter: true, lamentLayers: 2 },
+      ],
+    };
+    const { container, unmount } = render(<BattlePlayback battle={lamentBattle} onRestart={() => {}} />);
+    act(() => vi.advanceTimersByTime(0));
+    act(() => vi.advanceTimersByTime(110));
+    expect(container.querySelector(".tone-damage")?.textContent).toBe("Lament");
+    expect(container.querySelector<HTMLElement>('.unit-status-lament[title="哀悼 1/2"]')?.textContent).toBe("1/2");
+    expect(container.querySelector<HTMLImageElement>('.unit-status-lament img')?.src).toContain("data:image/svg+xml;base64,");
+    const statusCss = readFileSync(resolve(process.cwd(), "client/src/index.css"), "utf8");
+    expect(statusCss).toContain(".unit-status-lament img { width: 14px; height: 14px;");
+    unmount();
+
+    const attackBattle: CppBattleSimulationResponse = {
+      ...lamentBattle,
+      initialPlayers: [{ ...mourner, lamentLayers: 2 }, ally],
+      commands: [
+        { ...command("normal_attack", 0, 0, 100), sourcePlayerId: 2, targetPlayerId: 3, text: "哀悼者发起攻击，队友受到", newlineAfter: false },
+        { ...command("normal_attack_damage", 3, 20, 80), sourcePlayerId: 2, targetPlayerId: 3, text: "20", newlineAfter: true },
+        { ...command("status_sync", 0, 0, 80), sourcePlayerId: 2, targetPlayerId: 2, text: "", newlineAfter: true, lamentLayers: 1 },
+        { ...command("normal_attack", 0, 0, 100), sourcePlayerId: 2, targetPlayerId: 2, text: "哀悼者发起攻击，哀悼者受到", newlineAfter: false },
+        { ...command("normal_attack_damage", 3, 15, 85), sourcePlayerId: 2, targetPlayerId: 2, text: "15", newlineAfter: true },
+        { ...command("status_sync", 0, 0, 85), sourcePlayerId: 2, targetPlayerId: 2, text: "", newlineAfter: true, lamentLayers: 0 },
+      ],
+    };
+    const replay = render(<BattlePlayback battle={attackBattle} onRestart={() => {}} />);
+    act(() => vi.advanceTimersByTime(0));
+    for (let index = 0; index < 20; index += 1) {
+      act(() => vi.advanceTimersByTime(110));
+      act(() => vi.advanceTimersByTime(0));
+    }
+    expect(replay.container.textContent).toContain("哀悼者发起攻击，队友受到20");
+    expect(replay.container.textContent).toContain("哀悼者发起攻击，哀悼者受到15");
+    expect(replay.container.querySelector(".unit-status-lament")).toBeNull();
+    act(() => vi.runOnlyPendingTimers());
+  });
+
+  it("renders world.search(you); as a soft multicolor skill while applying its physical damage", () => {
+    vi.useFakeTimers();
+    const mili = { ...player, id: 1, teamId: 1, seatId: 1, inputIndex: 1, name: "mili", physicalAttack: 200, magicDefense: 50 };
+    const target = { ...player, id: 2, teamId: 2, seatId: 2, inputIndex: 2, name: "目标", hp: 100, maxHp: 100 };
+    const searchBattle: CppBattleSimulationResponse = {
+      ...battle,
+      initialPlayers: [mili, target],
+      finalPlayers: [mili, { ...target, hp: 40 }],
+      commands: [
+        { ...command("world_search", 0, 0, 100), sourcePlayerId: 1, targetPlayerId: 2, text: "mili使用", newlineAfter: false },
+        { ...command("world_search", 0, 0, 100), sourcePlayerId: 1, targetPlayerId: 2, text: "world.search(you);", newlineAfter: false },
+        { ...command("world_search_damage", 3, 60, 40), sourcePlayerId: 1, targetPlayerId: 2, text: "，目标受到60伤害", newlineAfter: true },
+      ],
+    };
+    const { container } = render(<BattlePlayback battle={searchBattle} onRestart={() => {}} />);
+    act(() => vi.advanceTimersByTime(0));
+    act(() => vi.advanceTimersByTime(110));
+    expect(container.querySelector(".world-search-text")?.textContent).toBe("world.search(you);");
+    expect(container.querySelector('[aria-label="目标 生命 40/100"]')).not.toBeNull();
+    act(() => vi.runOnlyPendingTimers());
+  });
+
+  it("plays execute once before each world.execute damage and restarts the strong screen shake on every hit", () => {
+    vi.useFakeTimers();
+    const mili = { ...player, id: 1, teamId: 1, seatId: 1, inputIndex: 1, name: "mili", hp: 70, maxHp: 3000 };
+    const first = { ...player, id: 2, teamId: 2, seatId: 2, inputIndex: 2, name: "甲", hp: 30, maxHp: 100 };
+    const last = { ...player, id: 3, teamId: 3, seatId: 3, inputIndex: 3, name: "乙", hp: 50, maxHp: 100 };
+    const executeBattle: CppBattleSimulationResponse = {
+      ...battle,
+      initialPlayers: [mili, first, last],
+      finalPlayers: [last],
+      commands: [
+        { ...command("world_execute", 0, 0, 70), sourcePlayerId: 1, targetPlayerId: 1, text: "mili使用", newlineAfter: false },
+        { ...command("world_execute", 0, 0, 70), sourcePlayerId: 1, targetPlayerId: 1, text: "world.execute(me);", newlineAfter: true },
+        { ...command("world_execute", 0, 0, 70), sourcePlayerId: 1, targetPlayerId: 1, text: "execute", newlineAfter: true },
+        { ...command("world_execute_damage", 3, 30, 40), sourcePlayerId: 1, targetPlayerId: 1, text: "mili受到30伤害", newlineAfter: true },
+        { ...command("world_execute", 0, 0, 30), sourcePlayerId: 1, targetPlayerId: 2, text: "execute", newlineAfter: true },
+        { ...command("world_execute_damage", 3, 30, 0), sourcePlayerId: 1, targetPlayerId: 2, text: "甲受到30伤害", newlineAfter: true },
+        { ...command("death", 0, 0, 0), sourcePlayerId: 0, targetPlayerId: 2, text: "甲消失了", newlineAfter: true, alive: false },
+        { ...command("world_execute", 0, 0, 20), sourcePlayerId: 1, targetPlayerId: 3, text: "execute", newlineAfter: true },
+        { ...command("world_execute_damage", 3, 20, 30), sourcePlayerId: 1, targetPlayerId: 3, text: "乙受到20伤害", newlineAfter: true },
+        { ...command("world_execute", 0, 0, 20), sourcePlayerId: 1, targetPlayerId: 1, text: "execute", newlineAfter: true },
+        { ...command("world_execute_damage", 3, 20, 0), sourcePlayerId: 1, targetPlayerId: 1, text: "mili受到20伤害", newlineAfter: true },
+        { ...command("death", 0, 0, 0), sourcePlayerId: 0, targetPlayerId: 1, text: "mili消失了", newlineAfter: true, alive: false },
+        { ...command("battle_end", 1, 0, 0), sourcePlayerId: 0, targetPlayerId: 0, text: "队伍3获胜", newlineAfter: true },
+      ],
+    };
+    const { container } = render(<BattlePlayback battle={executeBattle} onRestart={() => {}} />);
+    act(() => vi.advanceTimersByTime(0));
+    for (let index = 0; index < 28; index += 1) {
+      act(() => vi.advanceTimersByTime(110));
+      act(() => vi.advanceTimersByTime(0));
+    }
+    expect(Array.from(container.querySelectorAll(".world-execute-text")).map((element) => element.textContent)).toEqual(["world.execute(me);", "execute", "execute", "execute", "execute"]);
+    expect(container.querySelector(".arena-screen.is-execute-shaking")).not.toBeNull();
+    expect(container.textContent).toContain("乙受到20伤害");
+    expect(Array.from(container.querySelectorAll(".battle-line")).at(-1)?.textContent).toBe("队伍3获胜");
     act(() => vi.runOnlyPendingTimers());
   });
 
@@ -1099,6 +1629,143 @@ describe("BattlePlayback life animation integration", () => {
     const poisonedUnit = Array.from(container.querySelectorAll<HTMLElement>(".unit-readout")).find((unit) => unit.textContent?.includes("长局中毒者"));
 
     expect(poisonedUnit?.querySelector(".unit-status-poison b")?.textContent).toBe("25/1");
+    act(() => vi.runOnlyPendingTimers());
+  });
+
+  it("shows both string debuffs from the C++ snapshot on the first purple text segment", () => {
+    vi.useFakeTimers();
+    const target = { ...player, id: 2, teamId: 2, seatId: 2, inputIndex: 2, name: "放松警惕者" };
+    const bossStringBattle: CppBattleSimulationResponse = {
+      ...battle,
+      initialPlayers: [player, target],
+      finalPlayers: [player, { ...target, defenseDownStrength: 16, defenseDownLayers: 3, damageDownStrength: 16, damageDownLayers: 3 }],
+      commands: [
+        { ...command("boss_string", 0, 0, 100), sourcePlayerId: 1, targetPlayerId: 2, text: "张洋 ", newlineAfter: false, defenseDownStrength: 16, defenseDownLayers: 3, damageDownStrength: 16, damageDownLayers: 3 },
+        { ...command("boss_string", 5, 10, 100), sourcePlayerId: 1, targetPlayerId: 2, text: "串", newlineAfter: true, defenseDownStrength: 16, defenseDownLayers: 3, damageDownStrength: 16, damageDownLayers: 3 },
+      ],
+    };
+    const { container } = render(<BattlePlayback battle={bossStringBattle} onRestart={() => {}} />);
+    const targetUnit = Array.from(container.querySelectorAll<HTMLElement>(".unit-readout")).find((unit) => unit.textContent?.includes("放松警惕者"));
+
+    expect(container.querySelector(".battle-line")?.textContent).toBe("张洋 串");
+    expect(targetUnit?.querySelector(".unit-status-defense-down b")?.textContent).toBe("16/3");
+    expect(targetUnit?.querySelector(".unit-status-damage-down b")?.textContent).toBe("16/3");
+    act(() => vi.runOnlyPendingTimers());
+  });
+
+  it("shows the purple square icon and 1/5 snapshot when the boss casts magic", () => {
+    vi.useFakeTimers();
+    const target = { ...player, id: 2, teamId: 2, seatId: 2, inputIndex: 2, name: "被方者" };
+    const secondTarget = { ...player, id: 3, teamId: 2, seatId: 3, inputIndex: 3, name: "第二被方者" };
+    const thirdTarget = { ...player, id: 4, teamId: 2, seatId: 4, inputIndex: 4, name: "第三被方者" };
+    const magicBattle: CppBattleSimulationResponse = {
+      ...battle,
+      initialPlayers: [player, target, secondTarget, thirdTarget],
+      finalPlayers: [player, { ...target, squareStrength: 1, squareLayers: 5 }, { ...secondTarget, squareStrength: 1, squareLayers: 5 }, { ...thirdTarget, squareStrength: 1, squareLayers: 5 }],
+      commands: [
+        { ...command("boss_magic", 0, 0, 100), sourcePlayerId: 1, targetPlayerId: 1, text: "张洋使用", newlineAfter: false },
+        { ...command("boss_magic", 5, 0, 100), sourcePlayerId: 1, targetPlayerId: 1, text: "魔", newlineAfter: true },
+        { ...command("boss_magic_square", 0, 1, 100), sourcePlayerId: 1, targetPlayerId: 2, text: "被方者被", newlineAfter: false, squareStrength: 1, squareLayers: 5 },
+        { ...command("boss_magic_square", 5, 1, 100), sourcePlayerId: 1, targetPlayerId: 2, text: "方住了，", newlineAfter: false, squareStrength: 1, squareLayers: 5 },
+        { ...command("boss_magic_square", 0, 1, 100), sourcePlayerId: 1, targetPlayerId: 3, text: "第二被方者被", newlineAfter: false, squareStrength: 1, squareLayers: 5 },
+        { ...command("boss_magic_square", 5, 1, 100), sourcePlayerId: 1, targetPlayerId: 3, text: "方住了，", newlineAfter: false, squareStrength: 1, squareLayers: 5 },
+        { ...command("boss_magic_square", 0, 1, 100), sourcePlayerId: 1, targetPlayerId: 4, text: "第三被方者被", newlineAfter: false, squareStrength: 1, squareLayers: 5 },
+        { ...command("boss_magic_square", 5, 1, 100), sourcePlayerId: 1, targetPlayerId: 4, text: "方住了", newlineAfter: true, squareStrength: 1, squareLayers: 5 },
+      ],
+    };
+    const { container } = render(<BattlePlayback battle={magicBattle} onRestart={() => {}} />);
+
+    expect(container.querySelector(".battle-line")?.textContent).toBe("张洋使用魔");
+    act(() => vi.advanceTimersByTime(64));
+    const targetUnits = Array.from(container.querySelectorAll<HTMLElement>(".unit-readout")).filter((unit) => /被方者/.test(unit.textContent ?? ""));
+    expect(Array.from(container.querySelectorAll(".battle-line")).at(-1)?.textContent).toBe("被方者被方住了，第二被方者被方住了，第三被方者被方住了");
+    expect(container.textContent).not.toContain("获得5层1强度的方");
+    expect(targetUnits).toHaveLength(3);
+    expect(targetUnits.every((unit) => unit.querySelector(".unit-status-square b")?.textContent === "1/5")).toBe(true);
+    expect(targetUnits[0]?.querySelector(".unit-status-square img")?.getAttribute("src")).toContain("data:image/svg+xml;base64,");
+    act(() => vi.runOnlyPendingTimers());
+  });
+
+  it("renders the boss steal label in red without creating a damage animation", () => {
+    vi.useFakeTimers();
+    const target = { ...player, id: 2, teamId: 2, seatId: 2, inputIndex: 2, name: "被偷者" };
+    const stealBattle: CppBattleSimulationResponse = {
+      ...battle,
+      initialPlayers: [player, target],
+      finalPlayers: [player, target],
+      commands: [
+        { ...command("boss_steal", 0, 0, 100), sourcePlayerId: 1, targetPlayerId: 2, text: "张洋 ", newlineAfter: false },
+        { ...command("boss_steal", 3, 0, 100), sourcePlayerId: 1, targetPlayerId: 2, text: "偷", newlineAfter: false },
+        { ...command("boss_steal", 0, 0, 100), sourcePlayerId: 1, targetPlayerId: 2, text: "了被偷者的火球术!", newlineAfter: true },
+      ],
+    };
+    const { container } = render(<BattlePlayback battle={stealBattle} onRestart={() => {}} />);
+
+    expect(container.querySelector(".battle-line")?.textContent).toBe("张洋 偷了被偷者的火球术!");
+    expect(Array.from(container.querySelectorAll(".tone-damage")).map((node) => node.textContent)).toEqual(["偷"]);
+    expect(container.querySelector(".hp-loss")).toBeNull();
+    act(() => vi.runOnlyPendingTimers());
+  });
+
+  it("confirms every stolen queue item separately, including duplicate skills and the silent fast action effect", () => {
+    vi.useFakeTimers();
+    const boss = { ...player, id: 1, teamId: 1, seatId: 1, inputIndex: 1, name: "张洋" };
+    const target = { ...player, id: 2, teamId: 2, seatId: 2, inputIndex: 2, name: "被偷者" };
+    const stolenQueueBattle: CppBattleSimulationResponse = {
+      ...battle,
+      initialPlayers: [boss, target],
+      finalPlayers: [boss, { ...target, hp: 80 }],
+      commands: [
+        { ...command("boss_stolen_cast", 0, 0, 100), sourcePlayerId: 1, targetPlayerId: 1, skillId: 25, text: "张洋连放", newlineAfter: false },
+        { ...command("boss_stolen_cast", 15, 0, 100), sourcePlayerId: 1, targetPlayerId: 1, skillId: 25, text: "快速行动", newlineAfter: true },
+        { ...command("boss_stolen_cast", 0, 0, 100), sourcePlayerId: 1, targetPlayerId: 1, skillId: 25, text: "张洋连放", newlineAfter: false },
+        { ...command("boss_stolen_cast", 13, 0, 100), sourcePlayerId: 1, targetPlayerId: 1, skillId: 25, text: "火球术", newlineAfter: true },
+        { ...command("fireball_damage", 3, 10, 90), sourcePlayerId: 1, targetPlayerId: 2, text: "10", newlineAfter: true },
+        { ...command("boss_stolen_cast", 0, 0, 100), sourcePlayerId: 1, targetPlayerId: 1, skillId: 25, text: "张洋连放", newlineAfter: false },
+        { ...command("boss_stolen_cast", 13, 0, 100), sourcePlayerId: 1, targetPlayerId: 1, skillId: 25, text: "火球术", newlineAfter: true },
+        { ...command("fireball_damage", 3, 10, 80), sourcePlayerId: 1, targetPlayerId: 2, text: "10", newlineAfter: true },
+      ],
+    };
+    const { container } = render(<BattlePlayback battle={stolenQueueBattle} onRestart={() => {}} />);
+
+    for (let index = 0; index < 6; index += 1) {
+      act(() => vi.advanceTimersByTime(110));
+      act(() => vi.advanceTimersByTime(0));
+    }
+    expect(Array.from(container.querySelectorAll(".battle-line")).map((line) => line.textContent)).toEqual([
+      "张洋连放快速行动",
+      "张洋连放火球术",
+      "10",
+      "张洋连放火球术",
+      "10",
+    ]);
+    expect(Array.from(container.querySelectorAll(".tone-gold")).map((node) => node.textContent)).toEqual(["快速行动"]);
+    expect(Array.from(container.querySelectorAll(".tone-fire")).map((node) => node.textContent)).toEqual(["火球术", "火球术"]);
+    expect(container.textContent).not.toContain("20000行动值");
+  });
+
+  it("shows the failed-steal string message and plays a silent self-heal without heal spell text", () => {
+    vi.useFakeTimers();
+    const boss = { ...player, id: 1, teamId: 1, seatId: 1, inputIndex: 1, name: "张洋", hp: 40, maxHp: 100 };
+    const target = { ...player, id: 2, teamId: 2, seatId: 2, inputIndex: 2, name: "被偷者" };
+    const stealFallbackBattle: CppBattleSimulationResponse = {
+      ...battle,
+      initialPlayers: [boss, target],
+      finalPlayers: [{ ...boss, hp: 65 }, target],
+      commands: [
+        { ...command("boss_steal_fail", 0, 0, 40), sourcePlayerId: 1, targetPlayerId: 2, text: "张洋啥也没偷到，", newlineAfter: false },
+        { ...command("boss_steal_fail", 0, 0, 40), sourcePlayerId: 1, targetPlayerId: 2, text: "美美开串", newlineAfter: true },
+        { ...command("heal", 4, 25, 65), sourcePlayerId: 1, targetPlayerId: 1, text: "25", newlineAfter: true },
+      ],
+    };
+    const { container } = render(<BattlePlayback battle={stealFallbackBattle} onRestart={() => {}} />);
+
+    expect(container.querySelector(".battle-line")?.textContent).toBe("张洋啥也没偷到，美美开串");
+    expect(container.querySelector(".hp-loss")).toBeNull();
+    act(() => vi.advanceTimersByTime(110));
+    expect(Array.from(container.querySelectorAll(".battle-line")).at(-1)?.textContent).toBe("25");
+    expect(container.textContent).not.toContain("治愈魔法");
+    expect(container.querySelector(".hp-heal")).not.toBeNull();
     act(() => vi.runOnlyPendingTimers());
   });
 });

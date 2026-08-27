@@ -14,6 +14,7 @@ export type CppPlayerSnapshot = {
   isFamiliar?: boolean;
   ownerPlayerId?: number;
   magicVulnerability?: number;
+  lamentLayers?: number;
   name: string;
   hp: number;
   maxHp: number;
@@ -30,6 +31,12 @@ export type CppPlayerSnapshot = {
   freezeLayers?: number;
   ironwallStrength?: number;
   ironwallLayers?: number;
+  defenseDownStrength?: number;
+  defenseDownLayers?: number;
+  damageDownStrength?: number;
+  damageDownLayers?: number;
+  squareStrength?: number;
+  squareLayers?: number;
   speedUpStrength?: number;
   speedUpLayers?: number;
   speedDownStrength?: number;
@@ -52,10 +59,17 @@ export type CppRenderCommand = {
   renderTone: number;
   frontEndAnimation: string;
   text: string;
+  lamentLayers?: number;
   freezeStrength?: number;
   freezeLayers?: number;
   ironwallStrength?: number;
   ironwallLayers?: number;
+  defenseDownStrength?: number;
+  defenseDownLayers?: number;
+  damageDownStrength?: number;
+  damageDownLayers?: number;
+  squareStrength?: number;
+  squareLayers?: number;
   speedUpStrength?: number;
   speedUpLayers?: number;
   speedDownStrength?: number;
@@ -66,6 +80,13 @@ export type CppRenderCommand = {
   poisonLayers?: number;
   parryLayers?: number;
   alive?: boolean;
+  playerName?: string;
+  playerMaxHp?: number;
+  playerPhysicalAttack?: number;
+  playerPhysicalDefense?: number;
+  playerMagicAttack?: number;
+  playerMagicDefense?: number;
+  playerSpeed?: number;
   newlineAfter: boolean;
 };
 

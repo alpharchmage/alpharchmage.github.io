@@ -158,9 +158,13 @@ void heavy_strike(int x)
 | --- | --- |
 | `mili@!` | 输入标记用于识别 Boss，但初始快照、动态 Cmd 与最终快照都显示为 `mili` |
 | 双岛牛奶 | 生命高于 50% 时不选择；第 5 瓶及以后会清除眷属、触发结束技 |
+| mili 食物 | 每局固定拥有毒三明治、肉丸潜艇、不明味物、茄子、番茄各 1 件；`吃掉` 随机消耗一件，库存为空时输出空过 |
+| 不明味物 | 随机获得 0～20 级防御、攻击、速度强化，各持续 3 层；有效物攻通过 `get_atk`，速度通过 `get_spd`，防御通过 `get_def` 结算 |
+| 肉丸潜艇 | 食用后立即释放红色一次性探索；50% 无收获，50% 全队恢复 20% 最大生命并静默获得 5 级 5 层伤害强化 |
 | 月之子 / K-2 / 魔女 | 月之子、K-2 同时至多一名；魔女每局只能成功召唤一次；魔女死亡时递归移除后代 |
 | K-2 额外烧伤 | 对敌方现有烧伤造成一次伤害后也消耗一层；强度与层数归零时都要清除 |
-| `world.search(you);` | 单目标 250% 物攻，C++ 使用真实物理公式；前端只负责柔和彩色字体 |
+| 目标锁定 | 每队唯一目标、初始 3 层；同队每次直接攻击锁定目标扣 1 层，归零后清除；`world.search` 在锁定存续时不得改选目标 |
+| `world.search(you);` | 对单个敌人施加 3 层目标锁定，不造成伤害；每队只能有一个锁定目标，锁定仍存续时重复使用继续锁定同一人；同队直接攻击一次扣一层；前端显示瞄准图标 |
 | `world.execute(me);` | 每个目标伤害前独立输出字面 `execute`，按该轮最低生命造成绝对伤害；直到仅一人存活，随后 `world_execute_finished` 阻止一切后续行动/回合末结算 |
 | 张洋的偷 | 若复制到 `world.execute`，改为 `world.search`；偷来的月之子、K-2、魔女仍以张洋为施放者并复用各自的召唤上限检查 |
 
@@ -173,6 +177,7 @@ void heavy_strike(int x)
 | 设计项 | 建议 | 原因 |
 | --- | --- | --- |
 | 画布 | `viewBox="0 0 24 24"` | 与现有 SVG 图标保持统一缩放 |
+| 目标锁定瞄准图标 | 采用中心圆环、中心瞄点和四向准星线；关键线条避开右下角层数胶囊 | 在 16–18px 状态槽中仍能识别“锁定目标”语义 |
 | 安全边距 | 四边至少 `2px` | 防止描边在缩放时被裁切 |
 | 描边 | 通常 2–3 单位，`round` 端点 | 18px 下仍可辨认 |
 | 主颜色 | 只使用 1–2 个语义颜色 | 图标很小，过多颜色会变脏 |
@@ -381,3 +386,4 @@ zip -r ../name-arena-complete-project.zip . \
 [1]: https://docs.github.com/en/migrations/importing-source-code/using-the-command-line-to-import-source-code/adding-locally-hosted-code-to-github "GitHub Docs：Adding locally hosted code to GitHub"
 
 [2]: https://docs.github.com/en/get-started/using-git/pushing-commits-to-a-remote-repository "GitHub Docs：Pushing commits to a remote repository"
+

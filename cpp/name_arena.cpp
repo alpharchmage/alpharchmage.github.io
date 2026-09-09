@@ -23,6 +23,11 @@ using namespace std;
 
 const int MAXN = 100100; // 最大玩家数量，数组采用 1-index。
 const int MAXS = 32; // 单名玩家最多可登记的技能槽数量，数组采用 1-index。
+const int FOOD_POISON_SANDWICH = 1;
+const int FOOD_MEATBALL_SUBMARINE = 2;
+const int FOOD_MYSTERY = 4;
+const int FOOD_EGGPLANT = 8;
+const int FOOD_TOMATO = 16;
 
 // 各技能函数的前置声明；技能函数指针将被保存进 Player::skill 与 Player::tmp。
 void basic_attack(int x);
@@ -64,6 +69,8 @@ void galahad_laser_attack(int x);
 void lament(int x);
 void world_search(int x);
 void world_execute(int x);
+void eat_food(int x);
+void meatball_submarine(int x);
 void witch_galahad_never_fall(int x);
 void witch_talila_tulila(int x);
 void witch_multiple_path(int x);
@@ -97,6 +104,10 @@ struct Player
     int def_down_time; // 防御削弱剩余层数；目标每个自身回合开始时减 1，归零后清空削弱强度。
     int damage_down_int; // 伤害削弱强度；每级令该角色造成的最终伤害额外降低 5%。
     int damage_down_time; // 伤害削弱剩余层数；目标每个自身回合开始时减 1，归零后清空削弱强度。
+    int damage_up_int; // 伤害强化强度；每级令来源造成的最终伤害增加 5%。晚餐强化不在前端状态栏显示。
+    int damage_up_time; // 伤害强化剩余层数；该角色每个自身回合开始时减 1，归零后清空强度。
+    int attack_up_int; // 攻击强化强度；每级令有效物攻增加 5%。
+    int attack_up_time; // 攻击强化剩余层数；该角色每个自身回合开始时减 1，归零后清空强度。
     int square_int; // 方状态强度；当前固定为 1，存在期间令该角色的实际回魔量直接为 0。
     int square_time; // 方状态剩余层数；在目标每个自身回合结束时静默减 1，归零后清空强度。
     int blood_int; // 嗜血强度；吸血攻击会恢复伤害值的 5×嗜血强度%。
@@ -106,6 +117,8 @@ struct Player
     int poison_time; // 中毒层数；每次行动结束后按当前层数结算等次数的毒素伤害。
     int parry_time; // 招架剩余静默跳过回合数；存在时等待直接攻击触发反击，若连续两个自身回合未触发则归零。
     int lament_time; // 哀悼剩余层数；每次自身行动被无差别普通攻击替换后减 1，可能攻击任意存活单位且可命中自己。
+    int target_lock_time; // 目标锁定剩余层数；敌方被锁定时，所属施法者队伍的攻击优先指向该目标。
+    int target_lock_team; // 施加目标锁定的队伍编号；只有同队攻击会遵守该锁定。
     bool has_guard; // 是否拥有被动非法术守护；队友受到可转移伤害时可参与固定 30% 分摊判定。
     bool has_last_stand; // 是否拥有被动垂死挣扎；非生命之轮伤害后仍存活且生命低于 10% 时可触发一次。
     bool last_stand_used; // 本局是否已经发动过垂死挣扎；新对局创建角色时重置，避免重复触发。
@@ -115,6 +128,7 @@ struct Player
     bool is_mili; // 是否为 mili@! Boss；输入标记只用于识别，前端与战斗文本均显示 mili。
     int mili_skill_turn; // 保留 mili 的专属行动计数，供未来扩展轮换或阶段性技能时使用。
     int mili_milk_count; // mili 本局已饮用双岛牛奶数量，达到五瓶后立刻进入 world.execute 终局。
+    int mili_food_mask; // mili 本局剩余食物位图：毒三明治、肉丸潜艇、不明味物、茄子、番茄分别为 1、2、4、8、16。
     bool mili_witch_summoned; // 科学性实验魔女的单局召唤资格；成功召唤一次后即永久关闭，即使魔女死亡也不再补召。
     int boss_string_count; // 张洋“偷”的充能计数；每成功释放一次串加一，到 3 时由下一次 Boss 行动消耗。
     bool boss_magic_ready; // 张洋完成一次偷后标记下一次空待命行动施放第三技能“魔”，施放后自动复位。
@@ -179,6 +193,7 @@ struct Cmd
     int poison_time; // 当前目标的中毒剩余层数快照。
     int parry; // 当前目标的招架层数快照。
     int lament; // 当前目标的哀悼剩余层数快照。
+    int target_lock; // 当前目标的目标锁定层数快照。
     bool alive; // 当前目标在该命令结算后的存活状态快照。
     string player_name; // 当前目标的动态名称快照；用于破烂随从转换为新单位时即时改名。
     int player_maxhp; // 当前目标的动态最大生命快照。
@@ -367,6 +382,7 @@ void add(int a , int b , int sid , int val , int after , int col , const string&
     x.poison_time = 0;
     x.parry = 0;
     x.lament = 0;
+    x.target_lock = 0;
     x.alive = false;
     x.player_name = "";
     x.player_maxhp = 0;
@@ -399,6 +415,7 @@ void add(int a , int b , int sid , int val , int after , int col , const string&
     x.poison_time = p[b].poison_time;
     x.parry = p[b].parry_time;
     x.lament = p[b].lament_time;
+    x.target_lock = p[b].target_lock_time;
     x.alive = p[b].alive;
         x.player_name = p[b].name;
         x.player_maxhp = get_maxhp(b);
@@ -428,7 +445,7 @@ int get_maxhp(int x)
 
 int get_atk(int x)
 {
-    return p[x].atk;
+    return p[x].atk * (100 + p[x].attack_up_int * 5) / 100;
 }
 
 int get_def(int x)
@@ -441,7 +458,7 @@ int get_def(int x)
 // 该函数只由有来源的直接攻击与反击在最终伤害完成后调用；瘟疫、烧伤和中毒均不调用它。
 int reduce_outgoing_damage(int x , int d)
 {
-    int rate = max(0LL , 100 - p[x].damage_down_int * 5);
+    int rate = max(0LL , 100 - p[x].damage_down_int * 5 + p[x].damage_up_int * 5);
     return d * rate / 100;
 }
 
@@ -537,6 +554,10 @@ void make_player(const string& s , int id , bool long_battle)
     p[n].def_down_time = 0;
     p[n].damage_down_int = 0;
     p[n].damage_down_time = 0;
+    p[n].damage_up_int = 0;
+    p[n].damage_up_time = 0;
+    p[n].attack_up_int = 0;
+    p[n].attack_up_time = 0;
     p[n].square_int = 0;
     p[n].square_time = 0;
     p[n].blood_int = 10;
@@ -546,6 +567,8 @@ void make_player(const string& s , int id , bool long_battle)
     p[n].poison_time = 0;
     p[n].parry_time = 0;
     p[n].lament_time = 0;
+    p[n].target_lock_time = 0;
+    p[n].target_lock_team = 0;
     p[n].has_guard = false;
     p[n].has_last_stand = get_val(dh , 0 , 99) < 15;
     p[n].last_stand_used = false;
@@ -555,6 +578,7 @@ void make_player(const string& s , int id , bool long_battle)
     p[n].is_mili = is_mili;
     p[n].mili_skill_turn = 0;
     p[n].mili_milk_count = 0;
+    p[n].mili_food_mask = is_mili ? 31 : 0;
     p[n].mili_witch_summoned = false;
     p[n].boss_string_count = 0;
     p[n].boss_magic_ready = false;
@@ -582,7 +606,7 @@ void make_player(const string& s , int id , bool long_battle)
         p[n].has_last_stand = false;
         p[n].has_counter = false;
         p[n].has_devour = false;
-        p[n].sn = is_mili ? 4 : 1;
+        p[n].sn = is_mili ? 5 : 1;
         p[n].skill[1] = is_mili ? double_island_milk : string_skill;
         p[n].can[1] = true;
         p[n].w[1] = 1;
@@ -597,6 +621,9 @@ void make_player(const string& s , int id , bool long_battle)
             p[n].skill[4] = lament;
             p[n].can[4] = true;
             p[n].w[4] = 10;
+            p[n].skill[5] = eat_food;
+            p[n].can[5] = true;
+            p[n].w[5] = 10;
         }
         return;
     }
@@ -814,8 +841,8 @@ int alive_team()
     return ans;
 }
 
-// 为施法者 x 从所有存活敌方成员中等概率随机选择一个目标座位。
-int get_target(int x)
+// 不考虑目标锁定的原始随机敌方选择；world.search 首次施加锁定时使用此函数，避免旧锁定改变本次搜索对象。
+int get_random_enemy_target(int x)
 {
     int sum = 0; // 可被选中的存活敌人数量。
 
@@ -833,12 +860,43 @@ int get_target(int x)
         if(p[it].alive && p[it].id != p[x].id)
         {
             k--;
-
             if(k == 0) return it;
         }
     }
 
     return 0;
+}
+
+// 返回施法者 x 所属队伍当前可用的目标锁定敌人；同层按座位号稳定选择。
+int get_locked_target(int x)
+{
+    int locked = 0;
+    for(int it = 1; it <= n; ++it)
+    {
+        if(p[it].alive == false || p[it].id == p[x].id || p[it].target_lock_time <= 0 || p[it].target_lock_team != p[x].id) continue;
+        if(locked == 0 || p[it].target_lock_time > p[locked].target_lock_time || (p[it].target_lock_time == p[locked].target_lock_time && it < locked)) locked = it;
+    }
+    return locked;
+}
+
+// 为施法者 x 选择敌人：存在由 x 所属队伍施加的存活目标锁定时，所有同队攻击优先指向锁定层数最高者，否则随机选敌人。
+int get_target(int x)
+{
+    int locked = get_locked_target(x);
+    return locked != 0 ? locked : get_random_enemy_target(x);
+}
+
+// 同一队伍对其锁定目标完成一次直接攻击后消耗一层；持续伤害、生命之轮和 world.execute 不调用 take_hit，因此不会误扣层数。
+void consume_target_lock(int x, int it)
+{
+    if(x <= 0 || x > n || it <= 0 || it > n) return;
+    if(p[it].alive == false || p[it].target_lock_time <= 0 || p[it].target_lock_team != p[x].id) return;
+    p[it].target_lock_time--;
+    if(p[it].target_lock_time <= 0)
+    {
+        p[it].target_lock_time = 0;
+        p[it].target_lock_team = 0;
+    }
 }
 
 // 哀悼造成的无差别攻击目标：从全部存活单位中均匀抽取，施法者本人和同队成员也都是合法目标。
@@ -860,7 +918,9 @@ int get_lament_target(int x)
 // 瘟疫目标：智慧超过 125 时锁定当前生命值最高的存活敌人；其余情况沿用均匀随机敌人选择。
 int get_plague_target(int x)
 {
-    if(get_iq(x) <= 125) return get_target(x);
+    int locked = get_locked_target(x);
+    if(locked != 0) return locked;
+    if(get_iq(x) <= 125) return get_random_enemy_target(x);
 
     int ans = 0;
 
@@ -876,6 +936,9 @@ int get_plague_target(int x)
 // 生命之轮固定选择当前生命值最高的存活敌方；生命相同时保留座位编号更小者。
 int get_life_wheel_target(int x)
 {
+    int locked = get_locked_target(x);
+    if(locked != 0) return locked;
+
     int ans = 0;
 
     for(int it = 1;it <= n;++ it)
@@ -1253,6 +1316,10 @@ void summon(int x)
     p[n].def_down_time = 0;
     p[n].damage_down_int = 0;
     p[n].damage_down_time = 0;
+    p[n].damage_up_int = 0;
+    p[n].damage_up_time = 0;
+    p[n].attack_up_int = 0;
+    p[n].attack_up_time = 0;
     p[n].blood_int = 0;
     p[n].burn_int = 0;
     p[n].burn_time = 0;
@@ -1786,6 +1853,7 @@ int take_guard_damage(int x , int it , int d , int sid , const string& ani , con
 int take_hit(int x , int it , int d , int sid , const string& ani , const string& damage_ani , const string& damage_suffix , HurtType type , bool passive_counter_attack , bool end_line , int* dealt)
 {
     if(dealt != nullptr) *dealt = 0;
+    consume_target_lock(x , it);
     bool blocked = p[it].parry_time > 0 || (parry_source == x && parry_target == it && parry_sid == sid);
 
     if(blocked)
@@ -2386,19 +2454,101 @@ void lament(int x)
     add(p[x].no , p[it].no , 35 , 0 , p[it].hp , 3 , "lament" , "哀悼", true);
 }
 
-// world.search(you);：对一名存活敌方造成 250% 物攻减物防的直接物理伤害，仍经过统一命中、守护、格挡和死亡管线。
+// mili 吃掉技能：从本局固定的一次性食物库存中随机消耗一件；库存为空时仍会行动，但只输出吃不到并空过。
+void eat_food(int x)
+{
+    vector<int> foods;
+    for(int bit : {FOOD_POISON_SANDWICH , FOOD_MEATBALL_SUBMARINE , FOOD_MYSTERY , FOOD_EGGPLANT , FOOD_TOMATO})
+        if((p[x].mili_food_mask & bit) != 0) foods.push_back(bit);
+    if(foods.empty())
+    {
+        add(p[x].no , p[x].no , 38 , 0 , p[x].hp , 4 , "eat_food_fail" , p[x].name + "没有食物，什么也吃不到，只能空过", true);
+        return;
+    }
+    int food = foods[rnd_id((int)foods.size()) - 1];
+    p[x].mili_food_mask &= ~food;
+    string food_name = food == FOOD_POISON_SANDWICH ? "毒三明治" : food == FOOD_MEATBALL_SUBMARINE ? "肉丸潜艇" : food == FOOD_MYSTERY ? "不明味物" : food == FOOD_EGGPLANT ? "茄子" : "番茄";
+    add(p[x].no , p[x].no , 38 , 0 , p[x].hp , 4 , "eat_food" , p[x].name + "食用了" + food_name + "!!", true);
+    if(food == FOOD_MEATBALL_SUBMARINE)
+    {
+        meatball_submarine(x);
+        return;
+    }
+    if(food == FOOD_EGGPLANT || food == FOOD_TOMATO)
+    {
+        int before = p[x].hp;
+        p[x].hp = min(get_maxhp(x) , p[x].hp + 300);
+        add(p[x].no , p[x].no , 38 , p[x].hp - before , p[x].hp , 4 , "food_heal" , p[x].name + "恢复" + to_string(p[x].hp - before) + "生命", true);
+        return;
+    }
+    if(food == FOOD_MYSTERY)
+    {
+        p[x].def_plus_int += rnd() % 21;
+        p[x].def_plus_time += 3;
+        p[x].attack_up_int += rnd() % 21;
+        p[x].attack_up_time += 3;
+        p[x].spd_up_int += rnd() % 21;
+        p[x].spd_up_time += 3;
+        add(p[x].no , p[x].no , 38 , 0 , p[x].hp , 0 , "status_sync" , "", true);
+        return;
+    }
+    bool witch_present = false;
+    for(int it = 1; it <= n; ++it) if(p[it].alive && p[it].is_scientific_witch) witch_present = true;
+    if(witch_present)
+    {
+        for(int it = 1; it <= n; ++it)
+        {
+            if(p[it].alive == false) continue;
+            p[it].posion_int += 50;
+            p[it].poison_time += 1;
+            add(p[x].no , p[it].no , 38 , 0 , p[it].hp , 0 , "status_sync" , "", true);
+        }
+        add(p[x].no , p[x].no , 38 , 0 , p[x].hp , 14 , "eat_food" , "所有单位获得50强度1层中毒", true);
+    }
+    else
+    {
+        int before = p[x].hp;
+        if(p[x].hp * 100 < get_maxhp(x) * 30) p[x].hp = get_maxhp(x);
+        else p[x].hp = get_maxhp(x) * 30 / 100;
+        if(p[x].hp >= before)
+            add(p[x].no , p[x].no , 38 , p[x].hp - before , p[x].hp , 4 , "food_heal" , p[x].name + "恢复" + to_string(p[x].hp - before) + "生命", true);
+        else
+            add(p[x].no , p[x].no , 38 , before - p[x].hp , p[x].hp , 14 , "food_damage" , p[x].name + "生命降至30%", true);
+    }
+}
+// 肉丸潜艇：食用后立即执行一次红色探索；50% 空手而归，50% 带回晚餐并静默强化全队。
+void meatball_submarine(int x)
+{
+    add(p[x].no , p[x].no , 39 , 0 , p[x].hp , 3 , "meatball_submarine" , p[x].name + "乘坐肉丸潜艇潜向大海", false);
+    if(rnd() % 2 == 0)
+    {
+        add(p[x].no , p[x].no , 39 , 0 , p[x].hp , 3 , "meatball_submarine" , "什么都没有找到", true);
+        return;
+    }
+    add(p[x].no , p[x].no , 39 , 0 , p[x].hp , 3 , "meatball_submarine" , p[x].name + "带回了丰盛的晚餐!!", true);
+    for(int it = 1; it <= n; ++it)
+    {
+        if(p[it].alive == false || p[it].id != p[x].id) continue;
+        int before = p[it].hp;
+        p[it].hp = min(get_maxhp(it) , p[it].hp + get_maxhp(it) * 20 / 100);
+        p[it].damage_up_int += 5;
+        p[it].damage_up_time += 5;
+        add(p[x].no , p[it].no , 39 , p[it].hp - before , p[it].hp , 0 , "status_sync" , "", true);
+    }
+}
+// world.search(you);：对一名存活敌方施加 3 层目标锁定，不造成伤害；锁定仍存续时重复使用继续作用于同一目标。
 void world_search(int x)
 {
-    int it = get_target(x);
+    int it = get_locked_target(x);
+    if(it == 0) it = get_random_enemy_target(x);
     if(it == 0) return;
+    p[it].target_lock_time += 3;
+    p[it].target_lock_team = p[x].id;
 
-    int d = max(1LL , get_atk(x) * 250 / 100 - get_def(it));
-    d = reduce_outgoing_damage(x , d);
     add(p[x].no , p[it].no , 36 , 0 , p[it].hp , 0 , "world_search" , "mili使用", false);
     add(p[x].no , p[it].no , 36 , 0 , p[it].hp , 0 , "world_search" , "world.search(you);", false);
-    add(p[x].no , p[it].no , 36 , 0 , p[it].hp , 0 , "world_search" , "，", false);
-    take_hit(x , it , d , 36 , "world_search" , "world_search_damage");
-    clear_parry_action();
+    add(p[x].no , p[it].no , 36 , 0 , p[it].hp , 0 , "target_lock_apply" , "，目标锁定", false);
+    add(p[x].no , p[it].no , 36 , p[it].target_lock_time , p[it].hp , 5 , "target_lock_apply" , to_string(p[it].target_lock_time) + "层", true);
 }
 
 // world.execute(me);：每一次命中都先发出独立的 execute 视觉事件，再以当时全场最低存活生命作为绝对伤害结算。
@@ -2739,6 +2889,8 @@ string skill_display_name(void (*f)(int))
     if(f == brew_rebirth_potion) return "调制重生药水";
     if(f == world_search) return "world.search(you);";
     if(f == world_execute) return "world.execute(me);";
+    if(f == eat_food) return "吃掉";
+    if(f == meatball_submarine) return "肉丸潜艇";
     if(f == unfreeze) return "解除冻结";
     if(f == string_skill) return "串";
     return "未知技能";
@@ -2768,6 +2920,8 @@ int stolen_skill_tone(void (*f)(int))
     if(f == lancelot_zero_attack) return 2;
     if(f == brew_rebirth_potion) return 4;
     if(f == world_search || f == world_execute) return 16;
+    if(f == eat_food) return 4;
+    if(f == meatball_submarine) return 3;
     if(f == string_skill) return 5;
     if(f == stab || f == lifesteal_attack) return 3;
     return 2;
@@ -2887,13 +3041,23 @@ void begin_turn(int x)
         if(p[x].def_down_time == 0) p[x].def_down_int = 0;
     }
 
-    if(p[x].damage_down_time > 0)
+        if(p[x].damage_down_time > 0)
     {
         p[x].damage_down_time--;
         if(p[x].damage_down_time == 0) p[x].damage_down_int = 0;
     }
-
+    if(p[x].damage_up_time > 0)
+    {
+        p[x].damage_up_time--;
+        if(p[x].damage_up_time == 0) p[x].damage_up_int = 0;
+    }
+    if(p[x].attack_up_time > 0)
+    {
+        p[x].attack_up_time--;
+        if(p[x].attack_up_time == 0) p[x].attack_up_int = 0;
+    }
     if(p[x].spd_up_time > 0)
+
     {
         p[x].spd_up_time--;
         if(p[x].spd_up_time == 0)
@@ -3054,14 +3218,16 @@ void use_skill(int x)
             int witch_weight = p[x].mili_witch_summoned ? 0 : 10; // 科学性实验魔女每局只允许成功召唤一次，死亡后也不再补召。
             int lament_weight = 10;
             int search_weight = 10;
+            int food_weight = 10;
             int milk_weight = p[x].hp * 100 <= get_maxhp(x) * 50 ? 1 : 0; // 高于 50% 生命时不参与双岛牛奶抽取。
-            int sum = moon_weight + k2_weight + witch_weight + lament_weight + search_weight + milk_weight;
+            int sum = moon_weight + k2_weight + witch_weight + lament_weight + search_weight + food_weight + milk_weight;
             int k = rnd_id(sum);
             if(k <= moon_weight) summon_moon_child(x);
             else if(k <= moon_weight + k2_weight) summon_k2(x);
             else if(k <= moon_weight + k2_weight + witch_weight) summon_scientific_witch(x);
             else if(k <= moon_weight + k2_weight + witch_weight + lament_weight) lament(x);
             else if(k <= moon_weight + k2_weight + witch_weight + lament_weight + search_weight) world_search(x);
+            else if(k <= moon_weight + k2_weight + witch_weight + lament_weight + search_weight + food_weight) eat_food(x);
             else double_island_milk(x);
             p[x].mili_skill_turn++;
             return;
@@ -3285,6 +3451,7 @@ string player_json(int x)
     s += "\"poisonLayers\":" + to_string(p[x].poison_time) + ",";
     s += "\"parryLayers\":" + to_string(p[x].parry_time) + ",";
     s += "\"lamentLayers\":" + to_string(p[x].lament_time) + ",";
+    s += "\"targetLockLayers\":" + to_string(p[x].target_lock_time) + ",";
     s += "\"alive\":" + string(p[x].alive ? "true" : "false");
     s += "}";
     return s;
@@ -3344,6 +3511,7 @@ string cmds_json()
         s += "\"poisonLayers\":" + to_string(e[i].poison_time) + ",";
         s += "\"parryLayers\":" + to_string(e[i].parry) + ",";
         s += "\"lamentLayers\":" + to_string(e[i].lament) + ",";
+        s += "\"targetLockLayers\":" + to_string(e[i].target_lock) + ",";
         s += "\"alive\":" + string(e[i].alive ? "true" : "false") + ",";
         if(e[i].has_player_snapshot)
         {

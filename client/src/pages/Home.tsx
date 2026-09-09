@@ -37,6 +37,7 @@ type HealVisual = {
   transitionMs: number;
   phase: "marked" | "erasing";
 };
+const TARGET_LOCK_ICON_URL = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iNy4yIiBmaWxsPSIjZmZmNWY1IiBzdHJva2U9IiNiOTM2NGQiIHN0cm9rZS13aWR0aD0iMS43Ii8+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMi4yIiBmaWxsPSIjYjkzNjRkIi8+PHBhdGggZD0iTTEyIDJ2NE0xMiAxOHY0TTIgMTJoNE0xOCAxMmg0IiBzdHJva2U9IiM3ZDI1MzkiIHN0cm9rZT0iMS44IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48L3N2Zz4K";
 
 const PARRY_ICON_URL = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZD0iTTMgM2w4IDgtNSA4TTIxIDNsLTggOCA1IDgiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzY4NzQ3ZCIgc3Ryb2tlLXdpZHRoPSIzIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48cGF0aCBkPSJNNiAxOGwzLTJNMTggMThsLTMtMiIgc3Ryb2tlPSIjMzk0MzRhIiBzdHJva2Utd2lkdGg9IjIuNSIvPjxwYXRoIGQ9Ik0xMiA4VjVNMTAgOSA4IDdNMTQgOWwyLTIiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIxLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvc3ZnPgo=";
 
@@ -51,7 +52,7 @@ type ManaVisual = {
 };
 
 type StatusBadge = {
-  key: "freeze" | "ironwall" | "speed-up" | "speed-down" | "burn" | "poison" | "parry" | "magic-vuln" | "defense-down" | "damage-down" | "square" | "lament";
+  key: "freeze" | "ironwall" | "speed-up" | "speed-down" | "burn" | "poison" | "parry" | "magic-vuln" | "defense-down" | "damage-down" | "square" | "lament" | "target-lock";
   strength: number;
   layers: number;
   priority: number;
@@ -69,6 +70,7 @@ function getStatusBadges(player: CppPlayerSnapshot) {
   const poisonLayers = player.poisonLayers ?? 0;
   const parryLayers = player.parryLayers ?? 0;
   const lamentLayers = player.lamentLayers ?? 0;
+  const targetLockLayers = player.targetLockLayers ?? 0;
   const defenseDownLayers = player.defenseDownLayers ?? 0;
   const damageDownLayers = player.damageDownLayers ?? 0;
   const squareLayers = player.squareLayers ?? 0;
@@ -80,6 +82,7 @@ function getStatusBadges(player: CppPlayerSnapshot) {
   if (poisonLayers > 0) statuses.push({ key: "poison", strength: player.poisonStrength ?? 0, layers: poisonLayers, priority: 2, title: `中毒 ${player.poisonStrength ?? 0}/${poisonLayers}`, icon: POISON_ICON_URL });
   if (parryLayers > 0) statuses.push({ key: "parry", strength: 1, layers: parryLayers, priority: 3, title: `招架 1/${parryLayers}`, icon: PARRY_ICON_URL });
   if (lamentLayers > 0) statuses.push({ key: "lament", strength: 1, layers: lamentLayers, priority: 2, title: `哀悼 1/${lamentLayers}`, icon: LAMENT_ICON_URL });
+  if (targetLockLayers > 0) statuses.push({ key: "target-lock", strength: 1, layers: targetLockLayers, priority: 3, title: `目标锁定 1/${targetLockLayers}`, icon: TARGET_LOCK_ICON_URL });
   if (defenseDownLayers > 0) statuses.push({ key: "defense-down", strength: player.defenseDownStrength ?? 0, layers: defenseDownLayers, priority: 4, title: `防御削弱 ${player.defenseDownStrength ?? 0}/${defenseDownLayers}`, icon: DEFENSE_DOWN_ICON_URL });
   if (damageDownLayers > 0) statuses.push({ key: "damage-down", strength: player.damageDownStrength ?? 0, layers: damageDownLayers, priority: 5, title: `伤害削弱 ${player.damageDownStrength ?? 0}/${damageDownLayers}`, icon: DAMAGE_DOWN_ICON_URL });
   if (squareLayers > 0) statuses.push({ key: "square", strength: player.squareStrength ?? 0, layers: squareLayers, priority: 3, title: `方 ${player.squareStrength ?? 0}/${squareLayers}，回魔为0`, icon: SQUARE_ICON_URL });
@@ -104,12 +107,13 @@ const UnitReadout = memo(function UnitReadout({ player, damageVisuals, healVisua
   const manaLossWidthPercent = Math.max(0, manaLossStartPercent - manaLossEndPercent);
   const statuses = getStatusBadges(player);
   const isPoisoned = (player.poisonLayers ?? 0) > 0;
+  const isTargetLocked = (player.targetLockLayers ?? 0) > 0;
 
   return (
     <article className={`unit-readout ${compactMode ? "is-compact" : ""} ${player.isFamiliar ? "is-familiar" : ""} ${player.alive === false ? "is-defeated" : ""} ${player.isRevived ? "is-revived" : ""} ${isDamageTarget ? "is-taking-damage" : ""} ${isHealTarget ? "is-being-healed" : ""} ${isManaTarget ? "is-using-mana" : ""} ${isPoisoned ? "is-poisoned" : ""}`}>
       <strong title={`${player.name} #队伍${player.teamId}`}><span className="unit-name">{player.name}</span>{compactMode === false && statuses.length > 0 && <span className="unit-statuses" aria-label={`${player.name} 当前状态`}>{statuses.map((status) => <span className={`unit-status unit-status-${status.key}`} title={status.title} key={status.key}><img src={status.icon} alt="" aria-hidden="true" /><b>{status.key === "magic-vuln" ? `${status.strength}/∞` : `${status.strength}/${status.layers}`}</b></span>)}</span>}<em>#队伍{player.teamId}</em></strong>
       <div className="meter-stack">
-        <div className="hp-meter" aria-label={`${player.name} 生命 ${player.hp}/${player.maxHp}`}>
+        <div className={`hp-meter ${isTargetLocked ? "is-target-locked" : ""}`} aria-label={`${player.name} 生命 ${player.hp}/${player.maxHp}`}>
           <span className="hp-fill" style={{ transform: `scaleX(${hpPercent / 100})`, "--hp-animation-duration": `${hpTransitionMs}ms`, "--revived-hp-scale": hpPercent / 100 } as CSSProperties} />
           {playerDamageVisuals.map((visual) => {
             const lossStartPercent = Math.max(0, Math.min(100, (visual.beforeHp / player.maxHp) * 100));
@@ -238,7 +242,7 @@ export function BattlePlayback({ battle, onRestart, compactMode = false }: { bat
     const isFinalSegment = hasSegmentPause === false || segmentIndex >= currentEvent.length - 1;
     const statusCommands = new Map<number, CppRenderCommand>();
     for (const command of currentEvent) {
-      const hasStatusSnapshot = command.frontEndAnimation === "status_sync" || [command.freezeStrength, command.freezeLayers, command.ironwallStrength, command.ironwallLayers, command.defenseDownStrength, command.defenseDownLayers, command.damageDownStrength, command.damageDownLayers, command.squareStrength, command.squareLayers, command.speedUpStrength, command.speedUpLayers, command.speedDownStrength, command.speedDownLayers, command.burnStrength, command.burnLayers, command.poisonStrength, command.poisonLayers, command.parryLayers, command.lamentLayers, command.playerName, command.playerMaxHp, command.playerPhysicalAttack, command.playerPhysicalDefense, command.playerMagicAttack, command.playerMagicDefense, command.playerSpeed].some((value) => value !== undefined);
+      const hasStatusSnapshot = command.frontEndAnimation === "status_sync" || [command.freezeStrength, command.freezeLayers, command.ironwallStrength, command.ironwallLayers, command.defenseDownStrength, command.defenseDownLayers, command.damageDownStrength, command.damageDownLayers, command.squareStrength, command.squareLayers, command.speedUpStrength, command.speedUpLayers, command.speedDownStrength, command.speedDownLayers, command.burnStrength, command.burnLayers, command.poisonStrength, command.poisonLayers, command.parryLayers, command.lamentLayers, command.targetLockLayers, command.playerName, command.playerMaxHp, command.playerPhysicalAttack, command.playerPhysicalDefense, command.playerMagicAttack, command.playerMagicDefense, command.playerSpeed].some((value) => value !== undefined);
       if (command.targetPlayerId !== 0 && hasStatusSnapshot) statusCommands.set(command.targetPlayerId, command);
     }
 
@@ -276,6 +280,7 @@ export function BattlePlayback({ battle, onRestart, compactMode = false }: { bat
           poisonLayers: statusCommand.poisonLayers ?? player.poisonLayers,
           parryLayers: statusCommand.parryLayers ?? player.parryLayers,
           lamentLayers: statusCommand.lamentLayers ?? player.lamentLayers,
+          targetLockLayers: statusCommand.targetLockLayers ?? player.targetLockLayers,
           alive: statusCommand.alive ?? player.alive,
           isRevived: statusCommand.frontEndAnimation === "revive_heal" || statusCommand.frontEndAnimation === "familiar_transform" ? true : statusCommand.alive === false ? false : player.isRevived,
         };
@@ -326,6 +331,7 @@ export function BattlePlayback({ battle, onRestart, compactMode = false }: { bat
             poisonStrength: 0,
             poisonLayers: 0,
             parryLayers: 0,
+            targetLockLayers: 0,
             alive: true,
           };
           const nextPlayers = [...currentPlayers, spawnedFamiliar];

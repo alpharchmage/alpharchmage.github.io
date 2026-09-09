@@ -15,6 +15,7 @@ export type CppPlayerSnapshot = {
   ownerPlayerId?: number;
   magicVulnerability?: number;
   lamentLayers?: number;
+  targetLockLayers?: number;
   name: string;
   hp: number;
   maxHp: number;
@@ -60,6 +61,7 @@ export type CppRenderCommand = {
   frontEndAnimation: string;
   text: string;
   lamentLayers?: number;
+  targetLockLayers?: number;
   freezeStrength?: number;
   freezeLayers?: number;
   ironwallStrength?: number;

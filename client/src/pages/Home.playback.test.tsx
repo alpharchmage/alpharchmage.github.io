@@ -1481,25 +1481,29 @@ describe("BattlePlayback life animation integration", () => {
     act(() => vi.runOnlyPendingTimers());
   });
 
-  it("renders world.search(you); as a soft multicolor skill while applying its physical damage", () => {
+  it("renders world.search(you); as a soft multicolor skill while applying target lock without damage", () => {
     vi.useFakeTimers();
     const mili = { ...player, id: 1, teamId: 1, seatId: 1, inputIndex: 1, name: "mili", physicalAttack: 200, magicDefense: 50 };
     const target = { ...player, id: 2, teamId: 2, seatId: 2, inputIndex: 2, name: "目标", hp: 100, maxHp: 100 };
     const searchBattle: CppBattleSimulationResponse = {
       ...battle,
       initialPlayers: [mili, target],
-      finalPlayers: [mili, { ...target, hp: 40 }],
+      finalPlayers: [mili, target],
       commands: [
         { ...command("world_search", 0, 0, 100), sourcePlayerId: 1, targetPlayerId: 2, text: "mili使用", newlineAfter: false },
         { ...command("world_search", 0, 0, 100), sourcePlayerId: 1, targetPlayerId: 2, text: "world.search(you);", newlineAfter: false },
-        { ...command("world_search_damage", 3, 60, 40), sourcePlayerId: 1, targetPlayerId: 2, text: "，目标受到60伤害", newlineAfter: true },
+        { ...command("target_lock_apply", 5, 5, 100), sourcePlayerId: 1, targetPlayerId: 2, text: "，目标锁定3层", newlineAfter: true, targetLockLayers: 3 },
       ],
     };
     const { container } = render(<BattlePlayback battle={searchBattle} onRestart={() => {}} />);
     act(() => vi.advanceTimersByTime(0));
     act(() => vi.advanceTimersByTime(110));
     expect(container.querySelector(".world-search-text")?.textContent).toBe("world.search(you);");
-    expect(container.querySelector('[aria-label="目标 生命 40/100"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="目标 生命 100/100"]')).not.toBeNull();
+    expect(container.querySelector(".unit-status-target-lock")).not.toBeNull();
+    expect(container.querySelector(".hp-meter.is-target-locked")).not.toBeNull();
+    expect(container.querySelectorAll(".hp-meter.is-target-locked")).toHaveLength(1);
+    expect(container.querySelector(".hp-loss")).toBeNull();
     act(() => vi.runOnlyPendingTimers());
   });
 
@@ -1767,5 +1771,55 @@ describe("BattlePlayback life animation integration", () => {
     expect(container.textContent).not.toContain("治愈魔法");
     expect(container.querySelector(".hp-heal")).not.toBeNull();
     act(() => vi.runOnlyPendingTimers());
+  });
+
+  it("renders world.search as a three-layer target lock without damage", () => {
+    vi.useFakeTimers();
+    const mili = { ...player, name: "mili" };
+    const lockedEnemy = { ...player, id: 2, teamId: 2, seatId: 2, inputIndex: 2, name: "锁定敌人" };
+    const searchBattle: CppBattleSimulationResponse = {
+      ...battle,
+      initialPlayers: [mili, lockedEnemy],
+      finalPlayers: [mili, lockedEnemy],
+      commands: [
+        { ...command("world_search", 0, 0, 100), sourcePlayerId: 1, targetPlayerId: 2, text: "mili使用", newlineAfter: false },
+        { ...command("world_search", 0, 0, 100), sourcePlayerId: 1, targetPlayerId: 2, text: "world.search(you);", newlineAfter: false },
+        { ...command("target_lock_apply", 5, 5, 100), sourcePlayerId: 1, targetPlayerId: 2, text: "，目标锁定3层", newlineAfter: true, targetLockLayers: 3 },
+      ],
+    };
+    const { container } = render(<BattlePlayback battle={searchBattle} onRestart={() => {}} />);
+    act(() => vi.advanceTimersByTime(0));
+    const lockedUnit = Array.from(container.querySelectorAll<HTMLElement>(".unit-readout")).find((unit) => unit.textContent?.includes("锁定敌人"));
+    expect(container.querySelector(".world-search-text")?.textContent).toBe("world.search(you);");
+    expect(lockedUnit?.querySelector(".unit-status-target-lock")).not.toBeNull();
+    expect(lockedUnit?.querySelector(".unit-status-target-lock b")?.textContent).toBe("1/3");
+    expect(lockedUnit?.querySelector(".hp-loss")).toBeNull();
+    act(() => vi.runOnlyPendingTimers());
+  });
+
+  it("keeps target-lock priority scoped to the caster team in the C++ source contract", () => {
+    const cpp = readFileSync(resolve(process.cwd(), "cpp/name_arena.cpp"), "utf8");
+    expect(cpp).toContain("int target_lock_team;");
+    expect(cpp).toContain("p[it].target_lock_team != p[x].id");
+    expect(cpp).toContain("p[it].target_lock_time += 3;");
+    expect(cpp).toContain("p[it].target_lock_time--;");
+    expect(cpp).toContain("int it = get_locked_target(x);");
+    expect(cpp).toContain("get_random_enemy_target(x)");
+    expect(cpp).not.toContain('take_hit(x , it , d , 36 , "world_search" , "world_search_damage")');
+  });
+
+  it("registers mili's one-use food inventory and meatball submarine outcomes in the C++ source contract", () => {
+    const cpp = readFileSync(resolve(process.cwd(), "cpp/name_arena.cpp"), "utf8");
+    expect(cpp).toContain("p[n].mili_food_mask = is_mili ? 31 : 0;");
+    expect(cpp).toContain("void eat_food(int x);");
+    expect(cpp).toContain("void meatball_submarine(int x);");
+    expect(cpp).toContain("p[x].name + \"没有食物，什么也吃不到，只能空过\"");
+    expect(cpp).toContain("p[x].def_plus_int += rnd() % 21;");
+    expect(cpp).toContain("p[x].attack_up_int += rnd() % 21;");
+    expect(cpp).toContain("p[x].spd_up_int += rnd() % 21;");
+    expect(cpp).toContain("if(rnd() % 2 == 0)");
+    expect(cpp).toContain("p[it].damage_up_int += 5;");
+    expect(cpp).toContain("p[it].damage_up_time += 5;");
+    expect(cpp).toContain("p[it].hp + get_maxhp(it) * 20 / 100");
   });
 });

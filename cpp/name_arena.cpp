@@ -538,7 +538,7 @@ void make_player(const string& s , int id , bool long_battle)
     p[n].hp = p[n].maxhp;
     p[n].atk = is_mili ? 200 : is_zhang_yang ? 100 : get_val(h , 70 , 130);
     p[n].def = is_mili ? 45 : is_zhang_yang ? 60 : get_val(h , 30 , 60);
-    p[n].spd = is_mili ? 2000 : is_zhang_yang ? 2000 : get_val(h , 800 , 1200);
+    p[n].spd = is_mili ? 2000 : is_zhang_yang ? 4000 : get_val(h , 800 , 1200);
     p[n].satk = is_mili ? 200 : is_zhang_yang ? 180 : get_val(h , 100 , 200);
     p[n].sdef = is_mili ? 50 : is_zhang_yang ? 50 : get_val(h , 0 , 100);
     p[n].iq = is_mili ? 0 : is_zhang_yang ? 200 : get_val(h , 100 , 200);

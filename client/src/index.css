@@ -93,6 +93,10 @@ button:disabled { cursor: wait; }
 .unit-statuses { display: inline-flex; flex: 0 1 auto; align-items: center; gap: 3px; min-width: 0; overflow: hidden; }
 .unit-status { position: relative; display: inline-flex; flex: 0 0 auto; width: 30px; height: 20px; align-items: center; justify-content: flex-start; }
 .unit-status img { width: 18px; height: 18px; object-fit: contain; }
+.unit-status-seeking img { width: 17px; height: 17px; transform: rotate(-28deg); filter: drop-shadow(0 1px 1px rgb(25 94 120 / 30%)); }
+.unit-status-talisman i { display: grid; width: 17px; height: 17px; place-items: center; border: 1px solid #bc8a36; border-radius: 3px; background: #f6e6b9; color: #7a5112; font-size: 10px; font-style: normal; }
+.unit-status-seeking b { background: #327c9b; }
+.unit-status-talisman b { background: #a67a2b; }
 .unit-status b { position: absolute; right: -2px; bottom: -3px; min-width: 20px; border: 1px solid #fff; border-radius: 999px; padding: 0 2px; background: #385e69; color: #fff; font-size: 7px; font-variant-numeric: tabular-nums; line-height: 10px; text-align: center; white-space: nowrap; }
 .unit-status-lament img { width: 14px; height: 14px; margin-left: 1px; }
 .unit-status-target-lock img { width: 16px; height: 16px; margin-left: 0; }
@@ -117,6 +121,13 @@ button:disabled { cursor: wait; }
 .hp-loss.is-erasing { transform: scaleX(0); transition: transform var(--hp-animation-duration, .06s) cubic-bezier(.16, 1, .3, 1); }
 .hp-heal { position: absolute; inset-block: 0; z-index: 2; background: #9bdfaf; transform: scaleX(1); transform-origin: right center; will-change: transform; }
 .hp-heal.is-erasing { transform: scaleX(0); transition: transform var(--hp-animation-duration, .06s) cubic-bezier(.16, 1, .3, 1); }
+.yi-resources { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 7px; min-height: 16px; color: #557079; font-size: 9px; line-height: 14px; }
+.yi-resource { display: inline-flex; align-items: center; gap: 2px; white-space: nowrap; }
+.yi-resource img { width: 14px; height: 15px; object-fit: contain; }
+.yi-resource b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.yi-injury { color: #a44646; }
+.yi-medicine { color: #71834d; }
+.cangsha-mark { display: inline-block; width: 8px; height: 8px; border: 1px solid #9c7b43; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff5c9 0 15%, #d2ad64 35%, #8f6c34 100%); }
 .mana-meter { position: relative; height: 3px; overflow: hidden; contain: layout paint; border-radius: 0 0 999px 999px; background: #dcebf7; }
 .mana-meter span { display: block; height: 100%; }
 .mana-fill { position: absolute; inset: 0; z-index: 1; background: #4f9edb; transform: scaleX(1); transform-origin: left center; will-change: transform; transition: transform .06s ease-out; }

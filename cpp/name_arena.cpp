@@ -75,6 +75,17 @@ void witch_galahad_never_fall(int x);
 void witch_talila_tulila(int x);
 void witch_multiple_path(int x);
 void check_scientific_witch_phases(int x);
+void tri_yuan_sword(int x);
+void cang_bow(int x);
+void tie_fu(int x);
+void qizhu(int x);
+void yao_dou(int x);
+void break_arrow_electric(int x);
+void use_yi(int x);
+void trigger_yi_seek(int x);
+void yi_block_physical(int source , int target , int damage , int sid);
+void cancel_yi_infusion(int x , int sid);
+void resolve_yi_infusion(int x);
 bool spell(void (*f)(int));
 
 // Player 保存一个名字在整场战斗中的全部数值、状态和技能队列。
@@ -126,6 +137,20 @@ struct Player
     bool has_devour; // 是否拥有被动吞噬；初始禁用法术，击杀敌人后继承其技能资格和权重并恢复最大生命的 50%。
     bool is_boss; // 是否为 Boss 单位；Boss 使用固定属性与专属技能池，不参与普通名字随机技能分配。
     bool is_mili; // 是否为 mili@! Boss；输入标记只用于识别，前端与战斗文本均显示 mili。
+    bool is_yi; // 是否为羿 Boss；输入标记 yi@! 只用于识别，前端和战斗文本统一显示“羿”。
+    int yi_qi; // 羿的气，初始 0、上限 6；注气时最多注入 5。
+    int yi_cangsha; // 苍弓弹药苍砂，初始和上限均为 6。
+    int yi_internal_injury; // 羿格挡化力累积的内伤计数器。
+    int yi_seeking; // 寻敌层数；羿每行动一次消耗一层并追击。
+    int yi_talisman_layers; // 目标身上的符层数，当前仅用于状态展示与注气取消。
+    int yi_medicine_uses; // 药斗剩余使用次数。
+    bool yi_infusion_pending; // 羿贴符后等待立即优先结算的注气；期间受伤会取消。
+    int yi_infusion_target; // 本次待注气的符目标座位。
+    int yi_infusion_qi; // 本次注气冻结的气量，最多 5。
+    bool yi_arrow_deck_ready; // 六支箭矢是否已完成首次洗牌。
+    int yi_arrow_cursor; // 洗牌箭矢牌堆的下一个位置。
+    array<int , 6> yi_arrow_deck = {0, 0, 1, 1, 2, 2}; // 三种箭各两支的箭矢牌堆。
+    bool is_break_arrow; // 是否为破雷神箭眷属；不能受伤，也不接受正面或负面状态。
     int mili_skill_turn; // 保留 mili 的专属行动计数，供未来扩展轮换或阶段性技能时使用。
     int mili_milk_count; // mili 本局已饮用双岛牛奶数量，达到五瓶后立刻进入 world.execute 终局。
     int mili_food_mask; // mili 本局剩余食物位图：毒三明治、肉丸潜艇、不明味物、茄子、番茄分别为 1、2、4、8、16。
@@ -203,12 +228,19 @@ struct Cmd
     int player_sdef; // 当前目标的动态魔防快照。
     int player_spd; // 当前目标的动态速度快照。
     bool has_player_snapshot; // 是否携带动态名称与属性快照。
+    int qi; // 目标单位当前气值。
+    int internal_injury; // 目标单位当前内伤计数。
+    int seeking; // 目标单位当前寻敌层数。
+    int talisman; // 目标单位当前符层数。
+    int cangsha; // 目标单位当前苍砂数量。
+    int medicine_uses; // 目标单位药斗剩余使用次数。
 };
 
 array<Player , MAXN> p; // 本局玩家表，p[1] 到 p[n] 有效。
 array<int , MAXN> vis; // 队伍去重访问标记，用于统计存活队伍数量。
 array<bool , MAXN> revive_used; // 各队本局是否已成功施放过复苏术；队伍编号作为下标。
-enum HurtType { HURT_DIRECT , HURT_PLAGUE , HURT_BURN , HURT_POISON , HURT_LIFE_WHEEL , HURT_COUNTER }; // 统一伤害管线的来源类型；生命之轮交换和反击伤害均排除被动反击递归。
+enum HurtType { HURT_DIRECT , HURT_PLAGUE , HURT_BURN , HURT_POISON , HURT_LIFE_WHEEL , HURT_COUNTER , HURT_MAGIC , HURT_INTERNAL }; // 统一伤害管线来源；羿仅格挡物理类，魔法/持续/内伤分别走特殊结算。
+void on_yi_special_hit(int source , int target , int sid , HurtType type);
 vector<Cmd> e = vector<Cmd>(1); // 全部渲染指令；首个空元素保证有效指令从下标 1 开始。
 int n = 0; // 本局玩家数量。
 int tag = 0; // vis 的访问轮次标签，避免每次统计时清空整张 vis。
@@ -392,6 +424,12 @@ void add(int a , int b , int sid , int val , int after , int col , const string&
     x.player_sdef = 0;
     x.player_spd = 0;
     x.has_player_snapshot = false;
+    x.qi = 0;
+    x.internal_injury = 0;
+    x.seeking = 0;
+    x.talisman = 0;
+    x.cangsha = 0;
+    x.medicine_uses = 0;
 
     if(1 <= b && b <= n)
     {
@@ -417,6 +455,12 @@ void add(int a , int b , int sid , int val , int after , int col , const string&
     x.lament = p[b].lament_time;
     x.target_lock = p[b].target_lock_time;
     x.alive = p[b].alive;
+    x.qi = p[b].yi_qi;
+    x.internal_injury = p[b].yi_internal_injury;
+    x.seeking = p[b].yi_seeking;
+    x.talisman = p[b].yi_talisman_layers;
+    x.cangsha = p[b].yi_cangsha;
+    x.medicine_uses = p[b].yi_medicine_uses;
         x.player_name = p[b].name;
         x.player_maxhp = get_maxhp(b);
         x.player_atk = get_atk(b);
@@ -530,20 +574,21 @@ void make_player(const string& s , int id , bool long_battle)
     p[n].tmp_free.clear();
     bool is_zhang_yang = s == "tommy@!"; // 输入标记只用于识别张洋 Boss，前端与日志统一显示中文名“张洋”。
     bool is_mili = s == "mili@!"; // 输入标记只用于识别 mili Boss；前端与日志均显示 mili。
-    p[n].name = is_zhang_yang ? "张洋" : is_mili ? "mili" : s;
+    bool is_yi = s == "yi@!"; // 输入标记只用于识别羿 Boss，前端与日志统一显示“羿”。
+    p[n].name = is_zhang_yang ? "张洋" : is_mili ? "mili" : is_yi ? "羿" : s;
     p[n].no = n;
     p[n].id = id;
-    p[n].maxhp = is_mili ? 3000 : is_zhang_yang ? 2500 : get_val(h , 400 , 800);
-    if(long_battle == false) p[n].maxhp /= 2; // 短对局将普通角色派生生命、张洋固定 2500 生命一并减半。
+    p[n].maxhp = is_mili ? 3000 : is_yi ? 3000 : is_zhang_yang ? 2500 : get_val(h , 400 , 800);
+    if(long_battle == false) p[n].maxhp /= 2; // 短对局将普通角色及固定生命 Boss 的生命一并减半。
     p[n].hp = p[n].maxhp;
-    p[n].atk = is_mili ? 200 : is_zhang_yang ? 100 : get_val(h , 70 , 130);
-    p[n].def = is_mili ? 45 : is_zhang_yang ? 60 : get_val(h , 30 , 60);
-    p[n].spd = is_mili ? 2000 : is_zhang_yang ? 4000 : get_val(h , 800 , 1200);
-    p[n].satk = is_mili ? 200 : is_zhang_yang ? 180 : get_val(h , 100 , 200);
-    p[n].sdef = is_mili ? 50 : is_zhang_yang ? 50 : get_val(h , 0 , 100);
-    p[n].iq = is_mili ? 0 : is_zhang_yang ? 200 : get_val(h , 100 , 200);
+    p[n].atk = is_mili ? 200 : is_yi ? 100 : is_zhang_yang ? 100 : get_val(h , 70 , 130);
+    p[n].def = is_mili ? 45 : is_yi ? 20 : is_zhang_yang ? 60 : get_val(h , 30 , 60);
+    p[n].spd = is_mili ? 2000 : is_yi ? 5000 : is_zhang_yang ? 4000 : get_val(h , 800 , 1200);
+    p[n].satk = is_mili ? 200 : is_yi ? 200 : is_zhang_yang ? 180 : get_val(h , 100 , 200);
+    p[n].sdef = is_mili ? 50 : is_yi ? 50 : is_zhang_yang ? 50 : get_val(h , 0 , 100);
+    p[n].iq = is_mili ? 0 : is_yi ? 200 : is_zhang_yang ? 200 : get_val(h , 100 , 200);
     uint64_t mh = get_hash("mana-arena:" + s); // 独立于基础属性的回魔正态分布种子。
-    p[n].mreg = is_mili ? 0 : is_zhang_yang ? 100 : get_normal(mh , 20 , 40);
+    p[n].mreg = is_mili ? 0 : is_yi ? 0 : is_zhang_yang ? 100 : get_normal(mh , 20 , 40);
     p[n].maxmagic = 200;
     p[n].magic = 0;
     p[n].freeze = 0;
@@ -574,8 +619,21 @@ void make_player(const string& s , int id , bool long_battle)
     p[n].last_stand_used = false;
     p[n].has_counter = get_val(ch , 0 , 99) < 40;
     p[n].has_devour = get_val(eh , 0 , 99) < 10;
-    p[n].is_boss = is_zhang_yang || is_mili;
+    p[n].is_boss = is_zhang_yang || is_mili || is_yi;
     p[n].is_mili = is_mili;
+    p[n].is_yi = is_yi;
+    p[n].yi_qi = 0;
+    p[n].yi_cangsha = is_yi ? 6 : 0;
+    p[n].yi_internal_injury = 0;
+    p[n].yi_seeking = 0;
+    p[n].yi_talisman_layers = 0;
+    p[n].yi_medicine_uses = is_yi ? 7 : 0;
+    p[n].yi_infusion_pending = false;
+    p[n].yi_infusion_target = 0;
+    p[n].yi_infusion_qi = 0;
+    p[n].yi_arrow_deck_ready = false;
+    p[n].yi_arrow_cursor = 0;
+    p[n].is_break_arrow = false;
     p[n].mili_skill_turn = 0;
     p[n].mili_milk_count = 0;
     p[n].mili_food_mask = is_mili ? 31 : 0;
@@ -606,10 +664,22 @@ void make_player(const string& s , int id , bool long_battle)
         p[n].has_last_stand = false;
         p[n].has_counter = false;
         p[n].has_devour = false;
-        p[n].sn = is_mili ? 5 : 1;
-        p[n].skill[1] = is_mili ? double_island_milk : string_skill;
+        p[n].sn = is_yi ? 4 : is_mili ? 5 : 1;
+        p[n].skill[1] = is_yi ? tri_yuan_sword : is_mili ? double_island_milk : string_skill;
         p[n].can[1] = true;
         p[n].w[1] = 1;
+        if(is_yi)
+        {
+            p[n].skill[2] = cang_bow;
+            p[n].can[2] = true;
+            p[n].w[2] = 1;
+            p[n].skill[3] = tie_fu;
+            p[n].can[3] = true;
+            p[n].w[3] = 1;
+            p[n].skill[4] = yao_dou;
+            p[n].can[4] = true;
+            p[n].w[4] = 1;
+        }
         if(is_mili)
         {
             p[n].skill[2] = summon_moon_child;
@@ -953,7 +1023,7 @@ int get_life_wheel_target(int x)
 // 判断 it 是否为施法者 x 同队、存活且尚未满血的可受治疗目标。
 bool can_heal_target(int x , int it)
 {
-    return p[it].alive && p[it].id == p[x].id && p[it].hp < get_maxhp(it);
+    return p[it].alive && p[it].is_break_arrow == false && p[it].id == p[x].id && p[it].hp < get_maxhp(it);
 }
 
 // 判断施法者 x 的队伍中是否至少存在一名可受治疗成员；资格检查不消耗随机数。
@@ -1046,7 +1116,7 @@ int get_heal_target(int x)
 // 判断 it 是否为施法者 x 同队、存活且具有至少一种可净化负面状态的友方目标。
 bool can_purify_target(int x , int it)
 {
-    if(p[it].alive == false || p[it].id != p[x].id) return false;
+    if(p[it].alive == false || p[it].is_break_arrow || p[it].id != p[x].id) return false;
     return p[it].freeze > 0 || p[it].spd_down_time > 0 || p[it].burn_time > 0 || p[it].poison_time > 0;
 }
 
@@ -1153,7 +1223,7 @@ int reduce_k2_burn_source_damage(int source , int target , int d)
 // 返回 0 表示伤害非正或目标已死而未改状态，1 表示扣血后仍存活，2 表示本次扣血令目标死亡；调用者必须据此调用 finish_hurt 或 report_death。
 int receive_damage(int it , int d , HurtType type)
 {
-    if(d <= 0 || p[it].alive == false) return 0;
+    if(d <= 0 || p[it].alive == false || p[it].is_break_arrow) return 0;
 
     p[it].hp = max(0LL , p[it].hp - d);
     if(p[it].hp > 0) return 1;
@@ -1503,6 +1573,7 @@ void trigger_k2_extra_burn(int x)
         p[it].burn_time--; // K-2 的额外烧伤同样是一次实际烧伤结算，必须消耗目标一层持续层数。
         if(p[it].burn_time == 0) p[it].burn_int = 0;
         add(p[x].no , p[it].no , 29 , 0 , p[it].hp , 0 , "status_sync" , "", true);
+        on_yi_special_hit(0 , it , 29 , HURT_BURN);
         if(res == 2) report_death(0 , it , 29);
         else if(res == 1) finish_hurt(0 , it , HURT_BURN);
     }
@@ -1816,10 +1887,21 @@ int take_guard_damage(int x , int it , int d , int sid , const string& ani , con
             add(p[x].no , p[target].no , sid , 0 , p[target].hp , 0 , ani , "受到" , false);
         }
         int actual = reduce_k2_burn_source_damage(x , target , val);
+        if(p[target].is_break_arrow)
+        {
+            add(p[x].no , p[target].no , sid , 0 , p[target].hp , 10 , "yi_unbreakable" , p[target].name + "无法被破坏" , true);
+            return;
+        }
+        if(p[target].is_yi && (type == HURT_DIRECT || type == HURT_COUNTER))
+        {
+            yi_block_physical(x , target , actual , sid);
+            return;
+        }
         int res = receive_damage(target , actual , type);
         total_dealt += actual;
         add(p[x].no , p[target].no , sid , actual , p[target].hp , 3 , damage_ani , to_string(actual) , false);
         add(p[x].no , p[target].no , sid , actual , p[target].hp , 0 , damage_ani , damage_suffix , this_end_line);
+        on_yi_special_hit(x , target , sid , type);
 
         if(res == 2)
         {
@@ -1853,6 +1935,11 @@ int take_guard_damage(int x , int it , int d , int sid , const string& ani , con
 int take_hit(int x , int it , int d , int sid , const string& ani , const string& damage_ani , const string& damage_suffix , HurtType type , bool passive_counter_attack , bool end_line , int* dealt)
 {
     if(dealt != nullptr) *dealt = 0;
+    if(p[it].is_break_arrow)
+    {
+        add(p[x].no , p[it].no , sid , 0 , p[it].hp , 10 , "yi_unbreakable" , p[it].name + "无法被破坏" , true);
+        return 0;
+    }
     consume_target_lock(x , it);
     bool blocked = p[it].parry_time > 0 || (parry_source == x && parry_target == it && parry_sid == sid);
 
@@ -2231,7 +2318,7 @@ void fireball(int x)
     int d = magic_damage(x , it , 150); // 火球术基础伤害为魔攻的 150%，幻魔受常驻易损影响。
     d = reduce_outgoing_damage(x , d);
 
-    int res = take_hit(x , it , d , 10 , "fireball" , "fireball_damage");
+    int res = take_hit(x , it , d , 10 , "fireball" , "fireball_damage" , "伤害" , HURT_MAGIC);
     clear_parry_action();
     if(res != 1) return;
 
@@ -2268,6 +2355,7 @@ void plague(int x)
     int res = receive_damage(it , actual , HURT_PLAGUE);
     add(p[x].no , it , 16 , actual , p[it].hp , 3 , "plague_damage" , to_string(actual) , false);
     add(p[x].no , it , 16 , actual , p[it].hp , 0 , "plague_damage" , "点伤害" , true);
+    on_yi_special_hit(x , it , 16 , HURT_PLAGUE);
     if(res == 2)
     {
         report_death(x , it , 16);
@@ -2342,7 +2430,7 @@ void thunder(int x)
         int d = magic_damage(x , it , mul); // 与 0 取最大值的法术基础伤害，幻魔受常驻易损影响。
         d = reduce_outgoing_damage(x , d);
 
-        int res = take_hit(x , it , d , 2 , "thunder" , i == cnt ? "thunder_damage_last" : "thunder_damage");
+        int res = take_hit(x , it , d , 2 , "thunder" , i == cnt ? "thunder_damage_last" : "thunder_damage" , "伤害" , HURT_MAGIC);
         if(p[x].alive == false || res == 2)
         {
             clear_parry_action();
@@ -2385,7 +2473,7 @@ void earthquake(int x)
         int d = magic_damage(x , it , 80); // 地裂术基础伤害为魔攻的 80%，幻魔受常驻易损影响。
         d = reduce_outgoing_damage(x , d);
 
-        take_hit(x , it , d , 6 , "earthquake" , "earthquake_damage");
+        take_hit(x , it , d , 6 , "earthquake" , "earthquake_damage" , "伤害" , HURT_MAGIC);
         if(p[x].alive == false)
         {
             clear_parry_action();
@@ -2445,7 +2533,7 @@ void double_island_milk(int x)
 void lament(int x)
 {
     int it = get_target(x);
-    if(it == 0) return;
+    if(it == 0 || p[it].is_break_arrow) return;
 
     p[it].lament_time += 2;
     add(p[x].no , p[it].no , 35 , 0 , p[it].hp , 0 , "lament" , "mili使用", false);
@@ -2498,7 +2586,7 @@ void eat_food(int x)
     {
         for(int it = 1; it <= n; ++it)
         {
-            if(p[it].alive == false) continue;
+            if(p[it].alive == false || p[it].is_break_arrow) continue;
             p[it].posion_int += 50;
             p[it].poison_time += 1;
             add(p[x].no , p[it].no , 38 , 0 , p[it].hp , 0 , "status_sync" , "", true);
@@ -2528,7 +2616,7 @@ void meatball_submarine(int x)
     add(p[x].no , p[x].no , 39 , 0 , p[x].hp , 3 , "meatball_submarine" , p[x].name + "带回了丰盛的晚餐!!", true);
     for(int it = 1; it <= n; ++it)
     {
-        if(p[it].alive == false || p[it].id != p[x].id) continue;
+        if(p[it].alive == false || p[it].is_break_arrow || p[it].id != p[x].id) continue;
         int before = p[it].hp;
         p[it].hp = min(get_maxhp(it) , p[it].hp + get_maxhp(it) * 20 / 100);
         p[it].damage_up_int += 5;
@@ -2541,7 +2629,7 @@ void world_search(int x)
 {
     int it = get_locked_target(x);
     if(it == 0) it = get_random_enemy_target(x);
-    if(it == 0) return;
+    if(it == 0 || p[it].is_break_arrow) return;
     p[it].target_lock_time += 3;
     p[it].target_lock_team = p[x].id;
 
@@ -2677,7 +2765,7 @@ int get_ironwall_target(int x)
 
         for(int it = 1;it <= n;++ it)
         {
-            if(p[it].alive == false || p[it].id != p[x].id) continue;
+            if(p[it].alive == false || p[it].is_break_arrow || p[it].id != p[x].id) continue;
             if(p[it].hp * 100 >= get_maxhp(it) * 40) continue;
             if(ans == 0 || p[it].hp < p[ans].hp) ans = it;
         }
@@ -2773,7 +2861,7 @@ void ice(int x)
     int d = magic_damage(x , it , 25); // 与 0 取最大值的冰冻术基础伤害，幻魔受常驻易损影响。
     d = reduce_outgoing_damage(x , d);
 
-    int res = take_hit(x , it , d , 3 , "ice" , "ice_damage");
+    int res = take_hit(x , it , d , 3 , "ice" , "ice_damage" , "伤害" , HURT_MAGIC);
     clear_parry_action();
     if(res != 1) return;
 
@@ -2814,10 +2902,319 @@ int cost(void (*f)(int))
     return 0;
 }
 
+// 羿在法术、持续伤害或其他非物理伤害命中后取消待注气，并让已积累内伤立即发作。
+bool yi_special_hurt_type(HurtType type)
+{
+    return type == HURT_MAGIC || type == HURT_PLAGUE || type == HURT_BURN || type == HURT_POISON || type == HURT_LIFE_WHEEL;
+}
+
+// 取消贴符与待注气；无论目标是否仍存活，都同步清除符层数和注气队列。
+void cancel_yi_infusion(int x , int sid)
+{
+    if(x <= 0 || x > n || p[x].yi_infusion_pending == false) return;
+    int target = p[x].yi_infusion_target;
+    p[x].yi_infusion_pending = false;
+    p[x].yi_infusion_target = 0;
+    p[x].yi_infusion_qi = 0;
+    if(target > 0 && target <= n)
+    {
+        p[target].yi_talisman_layers = max(0LL , p[target].yi_talisman_layers - 1);
+        add(p[x].no , p[target].no , sid , 0 , p[target].hp , 5 , "status_sync" , "" , true);
+    }
+    add(p[x].no , p[x].no , sid , 0 , p[x].hp , 6 , "yi_infusion_cancel" , p[x].name + "受伤，贴符和注气取消" , true);
+}
+
+// 统一的羿特殊伤害后处理。内伤只在这次调用中结算一次；内伤自身不会再次递归触发。
+void on_yi_special_hit(int source , int target , int sid , HurtType type)
+{
+    if(target <= 0 || target > n || p[target].is_yi == false || yi_special_hurt_type(type) == false) return;
+    cancel_yi_infusion(target , sid);
+    int injury = p[target].yi_internal_injury;
+    if(injury <= 0) return;
+    p[target].yi_internal_injury = 0;
+    int result = receive_damage(target , injury , HURT_INTERNAL);
+    add(source , p[target].no , sid , injury , p[target].hp , 3 , "yi_internal_damage" , p[target].name + "内伤发作，受到" , false);
+    add(source , p[target].no , sid , injury , p[target].hp , 3 , "yi_internal_damage" , to_string(injury) + "点内伤伤害" , true);
+    if(result == 2) report_death(source , target , sid);
+    else if(result == 1) finish_hurt(source , target , HURT_INTERNAL);
+}
+
+// 羿以格挡化力完全免疫物理命中；20% 将 150% 伤害记入内伤，否则内伤降低 20%，并获得一层气。
+void yi_block_physical(int source , int target , int damage , int sid)
+{
+    if(damage <= 0) return;
+    bool store_injury = rnd_id(100) <= 20;
+    int injury_delta = 0;
+    if(store_injury)
+    {
+        injury_delta = damage * 150 / 100;
+        p[target].yi_internal_injury += injury_delta;
+    }
+    else p[target].yi_internal_injury = p[target].yi_internal_injury * 80 / 100;
+    p[target].yi_qi = min(6LL , p[target].yi_qi + 1);
+    add(source , target , sid , injury_delta , p[target].hp , 5 , "yi_block" , "羿 格挡" , false);
+    if(store_injury) add(source , target , sid , injury_delta , p[target].hp , 5 , "yi_block" , "，内伤累积" + to_string(p[target].yi_internal_injury) , false);
+    add(source , target , sid , 1 , p[target].hp , 5 , "yi_block" , "，获得一层气" , true);
+}
+
+// 穿云神箭、破雷神箭、寻影神箭分别以 0、1、2 表示。
+void fire_yi_arrow(int x , int arrow_kind , bool stolen)
+{
+    if(arrow_kind == 0)
+    {
+        int target = get_target(x);
+        if(target == 0) return;
+        add(p[x].no , p[target].no , 41 , 0 , p[target].hp , 0 , "yi_arrow" , p[x].name + "射出穿云神箭，" , false);
+        add(p[x].no , p[target].no , 41 , 0 , p[target].hp , 2 , "yi_arrow" , p[target].name , false);
+        int damage = magic_damage(x , target , 200);
+        damage = reduce_outgoing_damage(x , damage);
+        int result = take_hit(x , target , damage , 41 , "yi_arrow" , "yi_arrow_damage" , "伤害" , HURT_MAGIC);
+        clear_parry_action();
+        if(result == 1)
+        {
+            p[target].act = -200000;
+            add(p[x].no , p[target].no , 41 , 0 , p[target].hp , 0 , "yi_arrow_stun" , p[target].name + " " , false);
+            add(p[x].no , p[target].no , 41 , 0 , p[target].hp , 6 , "yi_arrow_stun" , "僵直" , true);
+        }
+        return;
+    }
+    if(arrow_kind == 1)
+    {
+        n++;
+        p[n] = Player();
+        p[n].skill.fill(nullptr);
+        p[n].can.fill(false);
+        p[n].w.fill(0);
+        p[n].tmp.clear();
+        p[n].tmp_free.clear();
+        p[n].name = "破雷神箭";
+        p[n].no = n;
+        p[n].id = p[x].id;
+        p[n].hp = p[n].maxhp = 9000000000000000LL;
+        p[n].atk = p[n].def = 0;
+        p[n].magic = p[n].maxmagic = p[n].mreg = 0;
+        p[n].spd = 5000;
+        p[n].satk = p[n].sdef = p[n].iq = 0;
+        p[n].act = 0;
+        p[n].alive = true;
+        p[n].is_familiar = true;
+        p[n].is_break_arrow = true;
+        p[n].owner = x;
+        p[n].sn = 1;
+        p[n].skill[1] = break_arrow_electric;
+        p[n].can[1] = true;
+        p[n].w[1] = 1;
+        add(p[x].no , p[n].no , 42 , 0 , p[n].hp , 0 , "yi_break_arrow" , p[x].name + "召唤出" , false);
+        add(p[x].no , p[n].no , 42 , 0 , p[n].hp , 10 , "yi_break_arrow" , "破雷神箭眷属" , false);
+        add(p[x].no , p[n].no , 42 , 0 , p[n].hp , 0 , "summon_spawn" , "" , true);
+        return;
+    }
+    if(arrow_kind == 2)
+    {
+        p[x].yi_seeking += 10;
+        add(p[x].no , p[x].no , 43 , 10 , p[x].hp , 5 , "yi_seeking" , p[x].name + "获得10层寻敌" , true);
+    }
+    (void)stolen;
+}
+
+// 苍弓抽取六支已洗牌箭矢之一，苍砂耗尽后不再进入羿的常规技能候选。
+void cang_bow(int x)
+{
+    if(p[x].is_yi)
+    {
+        if(p[x].yi_cangsha <= 0) return;
+        if(p[x].yi_arrow_deck_ready == false)
+        {
+            for(int i = 5; i > 0; --i) swap(p[x].yi_arrow_deck[i] , p[x].yi_arrow_deck[rnd_id(i + 1) - 1]);
+            p[x].yi_arrow_deck_ready = true;
+        }
+        int kind = p[x].yi_arrow_deck[p[x].yi_arrow_cursor++];
+        p[x].yi_cangsha--;
+        add(p[x].no , p[x].no , 40 , 1 , p[x].hp , 0 , "yi_cangsha" , "苍弓消耗1苍砂" , true);
+        fire_yi_arrow(x , kind , false);
+        return;
+    }
+    // 张洋偷到苍弓时，免费随机发射一种箭矢，不读取羿的弹药牌堆。
+    fire_yi_arrow(x , rnd_id(3) - 1 , true);
+}
+
+// 三元剑锁定一个敌人连续攻击三段，依次使用 80%、80%、150% 物理倍率；结束后内伤降低 15%。
+void tri_yuan_sword(int x)
+{
+    int target = get_target(x);
+    if(target == 0) return;
+    const int rate[3] = {80 , 80 , 150};
+    add(p[x].no , p[target].no , 44 , 0 , p[target].hp , 2 , "yi_tri_sword" , p[x].name + "使用三元剑，" , false);
+    for(int i = 0; i < 3 && p[target].alive; ++i)
+    {
+        int damage = max(1LL , (get_atk(x) - get_def(target)) * rate[i] / 100);
+        int fluctuation = 800 + rnd() % 401;
+        damage = max(1LL , (damage * fluctuation + 500) / 1000);
+        damage = reduce_outgoing_damage(x , damage);
+        add(p[x].no , p[target].no , 44 , 0 , p[target].hp , 0 , "yi_tri_sword" , to_string(i + 1) + "段，" , false);
+        int result = take_hit(x , target , damage , 44 , "yi_tri_sword" , "yi_tri_damage" , "伤害" , HURT_DIRECT , false , i == 2);
+        clear_parry_action();
+        if(result != 1) break;
+    }
+    p[x].yi_internal_injury = p[x].yi_internal_injury * 85 / 100;
+    add(p[x].no , p[x].no , 44 , 0 , p[x].hp , 0 , "status_sync" , "" , true);
+}
+
+// 注气：按注入气量计算减半后的基础魔伤，并加上施法者当前内伤的 25%。
+void qizhu(int x , int target , int qi)
+{
+    if(target <= 0 || target > n || p[target].alive == false || qi < 3) return;
+    qi = min(5LL , qi);
+    int base_rate = qi == 3 ? 50 : qi == 4 ? 75 : 125;
+    int injury_bonus = p[x].yi_internal_injury * 25 / 100;
+    int damage = magic_damage(x , target , base_rate) + injury_bonus;
+    damage = reduce_outgoing_damage(x , damage);
+    p[x].yi_internal_injury = p[x].yi_internal_injury * 75 / 100;
+    add(p[x].no , p[target].no , 45 , 0 , p[target].hp , 2 , "yi_qizhu" , p[x].name + "注气，" , false);
+    add(p[x].no , p[target].no , 45 , 0 , p[target].hp , 2 , "yi_qizhu" , p[target].name + "受到" , false);
+    take_hit(x , target , damage , 45 , "yi_qizhu" , "yi_qizhu_damage" , "伤害" , HURT_MAGIC);
+    clear_parry_action();
+    add(p[x].no , p[x].no , 45 , 0 , p[x].hp , 0 , "status_sync" , "" , true);
+}
+
+// 贴符后把注气放在自身行动末尾的立即优先队列；本行动末若先遭毒、烧或其他特殊伤害，伤害回调会取消此队列。
+void tie_fu(int x)
+{
+    int target = get_target(x);
+    if(target == 0) return;
+    if(p[x].is_yi == false)
+    {
+        p[target].yi_talisman_layers++;
+        add(p[x].no , p[target].no , 45 , 1 , p[target].hp , 5 , "yi_talisman" , p[x].name + "贴符，" + p[target].name + "被施加一层符" , false);
+        qizhu(x , target , 3);
+        p[target].yi_talisman_layers = max(0LL , p[target].yi_talisman_layers - 1);
+        add(p[x].no , p[target].no , 45 , 0 , p[target].hp , 0 , "status_sync" , "" , true);
+        return;
+    }
+    p[target].yi_talisman_layers++;
+    p[x].yi_infusion_pending = true;
+    p[x].yi_infusion_target = target;
+    p[x].yi_infusion_qi = min(5LL , p[x].yi_qi);
+    add(p[x].no , p[target].no , 45 , 1 , p[target].hp , 5 , "yi_talisman" , p[x].name + "贴符，" + p[target].name + "被施加一层符" , true);
+}
+
+// 贴符之后立即结算被队列锁定的注气；六层气时按五层注入，但结算后仍清空六层。
+void resolve_yi_infusion(int x)
+{
+    if(x <= 0 || x > n || p[x].yi_infusion_pending == false || p[x].alive == false) return;
+    int target = p[x].yi_infusion_target;
+    int qi = p[x].yi_infusion_qi;
+    p[x].yi_infusion_pending = false;
+    p[x].yi_infusion_target = 0;
+    p[x].yi_infusion_qi = 0;
+    p[x].yi_qi = 0;
+    if(target > 0 && target <= n)
+    {
+        p[target].yi_talisman_layers = max(0LL , p[target].yi_talisman_layers - 1);
+        add(p[x].no , p[target].no , 45 , 0 , p[target].hp , 0 , "status_sync" , "" , true);
+    }
+    add(p[x].no , p[x].no , 45 , qi , p[x].hp , 0 , "yi_qi_cost" , "注入" + to_string(qi) + "气，气归零" , true);
+    qizhu(x , target , qi);
+}
+
+// 药斗恢复 20% 最大生命并清除所有负面状态；偷取此技能的张洋仅使用这一机会，不扣羿的次数。
+void yao_dou(int x)
+{
+    if(p[x].is_yi)
+    {
+        if(p[x].yi_medicine_uses <= 0) return;
+        p[x].yi_medicine_uses--;
+    }
+    int heal = min(get_maxhp(x) * 20 / 100 , get_maxhp(x) - p[x].hp);
+    p[x].hp += heal;
+    p[x].freeze = p[x].freeze_int = 0;
+    p[x].burn_int = p[x].burn_time = 0;
+    p[x].posion_int = p[x].poison_time = 0;
+    p[x].def_down_int = p[x].def_down_time = 0;
+    p[x].damage_down_int = p[x].damage_down_time = 0;
+    p[x].spd_down_int = p[x].spd_down_time = 0;
+    p[x].square_int = p[x].square_time = 0;
+    p[x].target_lock_time = p[x].target_lock_team = 0;
+    p[x].lament_time = 0;
+    p[x].tmp.clear();
+    p[x].tmp_free.clear();
+    add(p[x].no , p[x].no , 46 , heal , p[x].hp , 4 , "yi_medicine" , p[x].name + "使用药斗，恢复20%生命并清除所有负面状态" , true);
+    add(p[x].no , p[x].no , 46 , 0 , p[x].hp , 0 , "status_sync" , "" , true);
+}
+
+// 破雷神箭眷属放电：无重复随机选择最多五名敌人，按各自最大生命 2% 造成特殊伤害，并降低其行动值 2000。
+void break_arrow_electric(int x)
+{
+    vector<int> targets;
+    for(int it = 1; it <= n; ++it) if(p[it].alive && p[it].id != p[x].id && p[it].is_break_arrow == false) targets.push_back(it);
+    for(int i = (int)targets.size(); i > 1; --i) swap(targets[i - 1], targets[rnd_id(i) - 1]);
+    int count = min(5LL, (int)targets.size());
+    if(count == 0) return;
+    add(p[x].no, p[x].no, 47, 0, p[x].hp, 7, "yi_electric", p[x].name + "放电，", false);
+    for(int i = 0; i < count; ++i)
+    {
+        int target = targets[i];
+        int damage = max(1LL, get_maxhp(target) * 2 / 100);
+        int result = receive_damage(target, damage, HURT_MAGIC);
+        add(p[x].no, target, 47, damage, p[target].hp, 3, "yi_electric_damage", p[target].name + "受到" + to_string(damage) + "点伤害", i + 1 == count);
+        p[target].act -= 2000;
+        on_yi_special_hit(x, target, 47, HURT_MAGIC);
+        if(result == 2) report_death(x, target, 47);
+        else if(result == 1 && p[target].alive) finish_hurt(x, target, HURT_MAGIC, i + 1 == count);
+    }
+}
+
+// 寻敌每层在羿完成一次行动后消耗一层，并追加一次 20% 魔攻的寻影箭追击。
+void trigger_yi_seek(int x)
+{
+    if(p[x].is_yi == false || p[x].yi_seeking <= 0) return;
+    p[x].yi_seeking--;
+    add(p[x].no , p[x].no , 43 , 0 , p[x].hp , 0 , "status_sync" , "" , false);
+    int target = get_target(x);
+    if(target == 0)
+    {
+        add(p[x].no , p[x].no , 43 , 0 , p[x].hp , 0 , "status_sync" , "" , true);
+        return;
+    }
+    int damage = magic_damage(x , target , 20);
+    damage = reduce_outgoing_damage(x , damage);
+    add(p[x].no , target , 43 , 0 , p[target].hp , 2 , "yi_seek_attack" , p[x].name + "寻影神箭 追击，" , false);
+    take_hit(x , target , damage , 43 , "yi_seek_attack" , "yi_seek_damage" , "伤害" , HURT_MAGIC);
+    clear_parry_action();
+}
+
+// 药斗权重在羿带任一负面状态时极高；否则贴符优先于三元剑，苍弓保持较低权重。
+bool yi_has_negative_status(int x)
+{
+    return p[x].freeze > 0 || p[x].burn_time > 0 || p[x].poison_time > 0 || p[x].def_down_time > 0 || p[x].damage_down_time > 0 || p[x].spd_down_time > 0 || p[x].square_time > 0 || p[x].target_lock_time > 0 || p[x].lament_time > 0;
+}
+
+void use_yi(int x)
+{
+    if(p[x].yi_infusion_pending == false)
+    {
+        int medicine_weight = p[x].yi_medicine_uses > 0 ? (yi_has_negative_status(x) ? 10000 : p[x].hp * 100 < get_maxhp(x) * 50 ? 3 : 1) : 0;
+        int tie_weight = p[x].yi_qi >= 3 ? 60 : 0;
+        int sword_weight = 40;
+        int bow_weight = p[x].yi_cangsha > 0 ? 3 : 0;
+        int sum = medicine_weight + tie_weight + sword_weight + bow_weight;
+        int roll = rnd_id(sum);
+        if(roll <= medicine_weight) yao_dou(x);
+        else if(roll <= medicine_weight + tie_weight) tie_fu(x);
+        else if(roll <= medicine_weight + tie_weight + sword_weight) tri_yuan_sword(x);
+        else cang_bow(x);
+    }
+    trigger_yi_seek(x);
+}
+
+
 // 判断玩家 x 的第 i 个技能槽能否参加本次特殊技能共享加权抽取；魔力不足的法术不会进入候选池。
 bool pickable_special(int x , int i)
 {
     if(p[x].skill[i] == nullptr || p[x].skill[i] == basic_attack || p[x].can[i] == false) return false;
+    if(p[x].is_yi && p[x].skill[i] == cang_bow && p[x].yi_cangsha <= 0) return false;
+    if(p[x].is_yi && p[x].skill[i] == tie_fu && p[x].yi_qi < 3) return false;
+    if(p[x].is_yi && p[x].skill[i] == yao_dou && p[x].yi_medicine_uses <= 0) return false;
     if(p[x].skill[i] == guard) return false;
     if(spell(p[x].skill[i]) && p[x].magic < cost(p[x].skill[i])) return false;
     if(p[x].skill[i] == heal_magic && has_heal_target(x) == false) return false;
@@ -2860,6 +3257,11 @@ void (*generate_ready_skill(int x))(int)
 string skill_display_name(void (*f)(int))
 {
     if(f == basic_attack) return "普通攻击";
+    if(f == tri_yuan_sword) return "三元剑";
+    if(f == cang_bow) return "苍弓";
+    if(f == tie_fu) return "贴符";
+    if(f == yao_dou) return "药斗";
+    if(f == break_arrow_electric) return "放电";
     if(f == thunder) return "雷击术";
     if(f == earthquake) return "地裂术";
     if(f == rage) return "疾走术";
@@ -3000,6 +3402,10 @@ void steal_skill(int x)
 // 返回技能槽 i 的共享抽取权重；低于 40% 血量且智力高于 100 时，治愈取得智力驱动的大幅优先级。
 int special_weight(int x , int i)
 {
+    if(p[x].is_yi && p[x].skill[i] == tie_fu) return 60;
+    if(p[x].is_yi && p[x].skill[i] == tri_yuan_sword) return 40;
+    if(p[x].is_yi && p[x].skill[i] == cang_bow) return 3;
+    if(p[x].is_yi && p[x].skill[i] == yao_dou) return yi_has_negative_status(x) ? 10000 : 1;
     if(p[x].skill[i] == heal_magic && p[x].hp * 100 < get_maxhp(x) * 40 && get_iq(x) > 100)
     {
         return p[x].w[i] + (get_iq(x) - 100) * 1000000;
@@ -3118,6 +3524,8 @@ void end_turn(int x)
             add(p[x].no , p[x].no , 10 , 0 , p[x].hp , 0 , "burn_remove" , "中解除" , true);
         }
         else add(p[x].no , p[x].no , 10 , 0 , p[x].hp , 0 , "burn_tick" , "伤害" , true);
+        on_yi_special_hit(0 , x , 10 , HURT_BURN);
+        if(p[x].alive == false) return;
 
         if(res == 2)
         {
@@ -3129,6 +3537,7 @@ void end_turn(int x)
 
     if(p[x].poison_time == 0)
     {
+        resolve_yi_infusion(x);
         if(p[x].is_k2 && p[x].alive) trigger_k2_extra_burn(x);
         return;
     }
@@ -3143,6 +3552,8 @@ void end_turn(int x)
         add(p[x].no , p[x].no , 12 , d , p[x].hp , 3 , "poison_damage" , to_string(d) , false);
         add(p[x].no , p[x].no , 12 , d , p[x].hp , 0 , "poison_tick" , "点" , false);
         add(p[x].no , p[x].no , 12 , d , p[x].hp , 14 , "poison_tick" , "毒素伤害" , true);
+        on_yi_special_hit(0 , x , 12 , HURT_POISON);
+        if(p[x].alive == false) return;
 
         if(res == 2)
         {
@@ -3162,6 +3573,7 @@ void end_turn(int x)
     }
 
     add(p[x].no , p[x].no , 12 , 0 , p[x].poison_time , 14 , "poison_fail" , "解毒失败" , true);
+    resolve_yi_infusion(x);
     if(p[x].is_k2 && p[x].alive) trigger_k2_extra_burn(x);
 }
 
@@ -3174,6 +3586,7 @@ void use_skill(int x)
         basic_attack(x);
         p[x].lament_time--;
         add(p[x].no , p[x].no , 35 , 0 , p[x].hp , 0 , "status_sync" , "", true);
+        if(p[x].is_yi) trigger_yi_seek(x);
         return;
     }
 
@@ -3206,6 +3619,12 @@ void use_skill(int x)
     {
         if(p[x].galahad_laser_mode) galahad_laser_attack(x);
         else galahad_one_attack(x);
+        return;
+    }
+
+    if(p[x].is_yi && p[x].tmp.empty())
+    {
+        use_yi(x);
         return;
     }
 
@@ -3417,6 +3836,16 @@ string player_json(int x)
     s += "\"seatId\":" + to_string(p[x].no) + ",";
     s += "\"inputIndex\":" + to_string(p[x].no) + ",";
     s += "\"isFamiliar\":" + string(p[x].is_familiar ? "true" : "false") + ",";
+    s += "\"isYi\":" + string(p[x].is_yi ? "true" : "false") + ",";
+    s += "\"isUnbreakable\":" + string(p[x].is_break_arrow ? "true" : "false") + ",";
+    s += "\"qi\":" + to_string(p[x].yi_qi) + ",";
+    s += "\"maxQi\":" + to_string(p[x].is_yi ? 6 : 0) + ",";
+    s += "\"cangsha\":" + to_string(p[x].yi_cangsha) + ",";
+    s += "\"maxCangsha\":" + to_string(p[x].is_yi ? 6 : 0) + ",";
+    s += "\"internalInjury\":" + to_string(p[x].yi_internal_injury) + ",";
+    s += "\"seekingLayers\":" + to_string(p[x].yi_seeking) + ",";
+    s += "\"talismanLayers\":" + to_string(p[x].yi_talisman_layers) + ",";
+    s += "\"medicineUses\":" + to_string(p[x].yi_medicine_uses) + ",";
     s += "\"ownerPlayerId\":" + to_string(p[x].owner) + ",";
     s += "\"magicVulnerability\":" + to_string(p[x].magic_vuln) + ",";
     s += "\"name\":\"" + esc(p[x].name) + "\",";
@@ -3512,6 +3941,12 @@ string cmds_json()
         s += "\"parryLayers\":" + to_string(e[i].parry) + ",";
         s += "\"lamentLayers\":" + to_string(e[i].lament) + ",";
         s += "\"targetLockLayers\":" + to_string(e[i].target_lock) + ",";
+        s += "\"qi\":" + to_string(e[i].qi) + ",";
+        s += "\"internalInjury\":" + to_string(e[i].internal_injury) + ",";
+        s += "\"seekingLayers\":" + to_string(e[i].seeking) + ",";
+        s += "\"talismanLayers\":" + to_string(e[i].talisman) + ",";
+        s += "\"cangsha\":" + to_string(e[i].cangsha) + ",";
+        s += "\"medicineUses\":" + to_string(e[i].medicine_uses) + ",";
         s += "\"alive\":" + string(e[i].alive ? "true" : "false") + ",";
         if(e[i].has_player_snapshot)
         {

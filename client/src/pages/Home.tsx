@@ -39,6 +39,8 @@ type HealVisual = {
 };
 const TARGET_LOCK_ICON_URL = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iNy4yIiBmaWxsPSIjZmZmNWY1IiBzdHJva2U9IiNiOTM2NGQiIHN0cm9rZS13aWR0aD0iMS43Ii8+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMi4yIiBmaWxsPSIjYjkzNjRkIi8+PHBhdGggZD0iTTEyIDJ2NE0xMiAxOHY0TTIgMTJoNE0xOCAxMmg0IiBzdHJva2U9IiM3ZDI1MzkiIHN0cm9rZT0iMS44IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48L3N2Zz4K";
 
+const QI_ICON_URL = "/yi-bagua.png";
+const SEEKING_ICON_URL = "data:image/svg+xml;utf8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 21 10 4l4 7 7 3-18 7Z" fill="#d6f5ff" stroke="#287da0" stroke-width="1.5" stroke-linejoin="round"/><path d="m10 4 2 10 9 0" fill="none" stroke="#fff" stroke-width="1.2"/></svg>');
 const PARRY_ICON_URL = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZD0iTTMgM2w4IDgtNSA4TTIxIDNsLTggOCA1IDgiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzY4NzQ3ZCIgc3Ryb2tlLXdpZHRoPSIzIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48cGF0aCBkPSJNNiAxOGwzLTJNMTggMThsLTMtMiIgc3Ryb2tlPSIjMzk0MzRhIiBzdHJva2Utd2lkdGg9IjIuNSIvPjxwYXRoIGQ9Ik0xMiA4VjVNMTAgOSA4IDdNMTQgOWwyLTIiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIxLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvc3ZnPgo=";
 
 const EMPTY_DAMAGE_VISUALS: DamageVisual[] = [];
@@ -52,7 +54,7 @@ type ManaVisual = {
 };
 
 type StatusBadge = {
-  key: "freeze" | "ironwall" | "speed-up" | "speed-down" | "burn" | "poison" | "parry" | "magic-vuln" | "defense-down" | "damage-down" | "square" | "lament" | "target-lock";
+  key: "freeze" | "ironwall" | "speed-up" | "speed-down" | "burn" | "poison" | "parry" | "magic-vuln" | "defense-down" | "damage-down" | "square" | "lament" | "target-lock" | "seeking" | "talisman";
   strength: number;
   layers: number;
   priority: number;
@@ -75,7 +77,11 @@ function getStatusBadges(player: CppPlayerSnapshot) {
   const damageDownLayers = player.damageDownLayers ?? 0;
   const squareLayers = player.squareLayers ?? 0;
   const magicVulnerability = player.magicVulnerability ?? 0;
+  const seekingLayers = player.seekingLayers ?? 0;
+  const talismanLayers = player.talismanLayers ?? 0;
 
+  if (seekingLayers > 0) statuses.push({ key: "seeking", strength: 1, layers: seekingLayers, priority: 3, title: `寻敌 1/${seekingLayers}`, icon: SEEKING_ICON_URL });
+  if (talismanLayers > 0) statuses.push({ key: "talisman", strength: 1, layers: talismanLayers, priority: 3, title: `符 1/${talismanLayers}`, icon: "" });
   if (magicVulnerability > 0) statuses.push({ key: "magic-vuln", strength: magicVulnerability, layers: Number.MAX_SAFE_INTEGER, priority: -1, title: `魔法易损 ${magicVulnerability}/∞`, icon: MAGIC_VULN_ICON_URL });
   if (freezeLayers > 0) statuses.push({ key: "freeze", strength: player.freezeStrength ?? 0, layers: freezeLayers, priority: 0, title: `冻结 ${player.freezeStrength ?? 0}/${freezeLayers}`, icon: FREEZE_ICON_URL });
   if (burnLayers > 0) statuses.push({ key: "burn", strength: player.burnStrength ?? 0, layers: burnLayers, priority: 1, title: `烧伤 ${player.burnStrength ?? 0}/${burnLayers}`, icon: FIRE_ICON_URL });
@@ -111,7 +117,7 @@ const UnitReadout = memo(function UnitReadout({ player, damageVisuals, healVisua
 
   return (
     <article className={`unit-readout ${compactMode ? "is-compact" : ""} ${player.isFamiliar ? "is-familiar" : ""} ${player.alive === false ? "is-defeated" : ""} ${player.isRevived ? "is-revived" : ""} ${isDamageTarget ? "is-taking-damage" : ""} ${isHealTarget ? "is-being-healed" : ""} ${isManaTarget ? "is-using-mana" : ""} ${isPoisoned ? "is-poisoned" : ""}`}>
-      <strong title={`${player.name} #队伍${player.teamId}`}><span className="unit-name">{player.name}</span>{compactMode === false && statuses.length > 0 && <span className="unit-statuses" aria-label={`${player.name} 当前状态`}>{statuses.map((status) => <span className={`unit-status unit-status-${status.key}`} title={status.title} key={status.key}><img src={status.icon} alt="" aria-hidden="true" /><b>{status.key === "magic-vuln" ? `${status.strength}/∞` : `${status.strength}/${status.layers}`}</b></span>)}</span>}<em>#队伍{player.teamId}</em></strong>
+      <strong title={`${player.name} #队伍${player.teamId}`}><span className="unit-name">{player.name}</span>{compactMode === false && statuses.length > 0 && <span className="unit-statuses" aria-label={`${player.name} 当前状态`}>{statuses.map((status) => <span className={`unit-status unit-status-${status.key}`} title={status.title} key={status.key}>{status.icon ? <img src={status.icon} alt="" aria-hidden="true" /> : <i aria-hidden="true">符</i>}<b>{status.key === "magic-vuln" ? `${status.strength}/∞` : `${status.strength}/${status.layers}`}</b></span>)}</span>}<em>#队伍{player.teamId}</em></strong>
       <div className="meter-stack">
         <div className={`hp-meter ${isTargetLocked ? "is-target-locked" : ""}`} aria-label={`${player.name} 生命 ${player.hp}/${player.maxHp}`}>
           <span className="hp-fill" style={{ transform: `scaleX(${hpPercent / 100})`, "--hp-animation-duration": `${hpTransitionMs}ms`, "--revived-hp-scale": hpPercent / 100 } as CSSProperties} />
@@ -128,6 +134,7 @@ const UnitReadout = memo(function UnitReadout({ player, damageVisuals, healVisua
             return healWidthPercent > 0 ? <span className={`hp-heal ${visual.phase === "erasing" ? "is-erasing" : ""}`} key={visual.animationId} style={{ left: `${healStartPercent}%`, width: `${healWidthPercent}%`, "--hp-animation-duration": `${visual.transitionMs}ms` } as CSSProperties} /> : null;
           })}
         </div>
+        {compactMode === false && player.isYi && <div className="yi-resources" aria-label="羿的特殊资源"><span className="yi-resource qi-resource"><img src={QI_ICON_URL} alt="" /><b>气 {player.qi ?? 0}/{player.maxQi ?? 6}</b></span><span className="yi-resource"><i className="cangsha-mark" /><b>苍砂 {player.cangsha ?? 0}/{player.maxCangsha ?? 6}</b></span><span className="yi-resource yi-injury">内伤 {player.internalInjury ?? 0}</span><span className="yi-resource yi-medicine">药斗 {player.medicineUses ?? 0}</span></div>}
         {compactMode === false && <div className="mana-meter" aria-label={`${player.name} 魔力 ${player.mana}/${player.maxMana}`}>
           <span className="mana-fill" style={{ transform: `scaleX(${manaPercent / 100})` }} />
           {isManaTarget && manaLossWidthPercent > 0 && <span className={`mana-loss ${manaVisual.phase === "erasing" ? "is-erasing" : ""}`} style={{ left: `${manaLossEndPercent}%`, width: `${manaLossWidthPercent}%` }} />}
@@ -242,7 +249,7 @@ export function BattlePlayback({ battle, onRestart, compactMode = false }: { bat
     const isFinalSegment = hasSegmentPause === false || segmentIndex >= currentEvent.length - 1;
     const statusCommands = new Map<number, CppRenderCommand>();
     for (const command of currentEvent) {
-      const hasStatusSnapshot = command.frontEndAnimation === "status_sync" || [command.freezeStrength, command.freezeLayers, command.ironwallStrength, command.ironwallLayers, command.defenseDownStrength, command.defenseDownLayers, command.damageDownStrength, command.damageDownLayers, command.squareStrength, command.squareLayers, command.speedUpStrength, command.speedUpLayers, command.speedDownStrength, command.speedDownLayers, command.burnStrength, command.burnLayers, command.poisonStrength, command.poisonLayers, command.parryLayers, command.lamentLayers, command.targetLockLayers, command.playerName, command.playerMaxHp, command.playerPhysicalAttack, command.playerPhysicalDefense, command.playerMagicAttack, command.playerMagicDefense, command.playerSpeed].some((value) => value !== undefined);
+      const hasStatusSnapshot = command.frontEndAnimation === "status_sync" || [command.freezeStrength, command.freezeLayers, command.ironwallStrength, command.ironwallLayers, command.defenseDownStrength, command.defenseDownLayers, command.damageDownStrength, command.damageDownLayers, command.squareStrength, command.squareLayers, command.speedUpStrength, command.speedUpLayers, command.speedDownStrength, command.speedDownLayers, command.burnStrength, command.burnLayers, command.poisonStrength, command.poisonLayers, command.parryLayers, command.lamentLayers, command.targetLockLayers, command.qi, command.internalInjury, command.seekingLayers, command.talismanLayers, command.cangsha, command.medicineUses, command.playerName, command.playerMaxHp, command.playerPhysicalAttack, command.playerPhysicalDefense, command.playerMagicAttack, command.playerMagicDefense, command.playerSpeed].some((value) => value !== undefined);
       if (command.targetPlayerId !== 0 && hasStatusSnapshot) statusCommands.set(command.targetPlayerId, command);
     }
 
@@ -281,6 +288,12 @@ export function BattlePlayback({ battle, onRestart, compactMode = false }: { bat
           parryLayers: statusCommand.parryLayers ?? player.parryLayers,
           lamentLayers: statusCommand.lamentLayers ?? player.lamentLayers,
           targetLockLayers: statusCommand.targetLockLayers ?? player.targetLockLayers,
+          qi: statusCommand.qi ?? player.qi,
+          internalInjury: statusCommand.internalInjury ?? player.internalInjury,
+          seekingLayers: statusCommand.seekingLayers ?? player.seekingLayers,
+          talismanLayers: statusCommand.talismanLayers ?? player.talismanLayers,
+          cangsha: statusCommand.cangsha ?? player.cangsha,
+          medicineUses: statusCommand.medicineUses ?? player.medicineUses,
           alive: statusCommand.alive ?? player.alive,
           isRevived: statusCommand.frontEndAnimation === "revive_heal" || statusCommand.frontEndAnimation === "familiar_transform" ? true : statusCommand.alive === false ? false : player.isRevived,
         };

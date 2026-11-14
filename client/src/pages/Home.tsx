@@ -39,7 +39,6 @@ type HealVisual = {
 };
 const TARGET_LOCK_ICON_URL = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iNy4yIiBmaWxsPSIjZmZmNWY1IiBzdHJva2U9IiNiOTM2NGQiIHN0cm9rZS13aWR0aD0iMS43Ii8+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMi4yIiBmaWxsPSIjYjkzNjRkIi8+PHBhdGggZD0iTTEyIDJ2NE0xMiAxOHY0TTIgMTJoNE0xOCAxMmg0IiBzdHJva2U9IiM3ZDI1MzkiIHN0cm9rZT0iMS44IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48L3N2Zz4K";
 
-const QI_ICON_URL = "/yi-bagua.png";
 const SEEKING_ICON_URL = "data:image/svg+xml;utf8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 21 10 4l4 7 7 3-18 7Z" fill="#d6f5ff" stroke="#287da0" stroke-width="1.5" stroke-linejoin="round"/><path d="m10 4 2 10 9 0" fill="none" stroke="#fff" stroke-width="1.2"/></svg>');
 const PARRY_ICON_URL = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZD0iTTMgM2w4IDgtNSA4TTIxIDNsLTggOCA1IDgiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzY4NzQ3ZCIgc3Ryb2tlLXdpZHRoPSIzIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48cGF0aCBkPSJNNiAxOGwzLTJNMTggMThsLTMtMiIgc3Ryb2tlPSIjMzk0MzRhIiBzdHJva2Utd2lkdGg9IjIuNSIvPjxwYXRoIGQ9Ik0xMiA4VjVNMTAgOSA4IDdNMTQgOWwyLTIiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIxLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvc3ZnPgo=";
 
@@ -134,7 +133,7 @@ const UnitReadout = memo(function UnitReadout({ player, damageVisuals, healVisua
             return healWidthPercent > 0 ? <span className={`hp-heal ${visual.phase === "erasing" ? "is-erasing" : ""}`} key={visual.animationId} style={{ left: `${healStartPercent}%`, width: `${healWidthPercent}%`, "--hp-animation-duration": `${visual.transitionMs}ms` } as CSSProperties} /> : null;
           })}
         </div>
-        {compactMode === false && player.isYi && <div className="yi-resources" aria-label="羿的特殊资源"><span className="yi-resource qi-resource"><img src={QI_ICON_URL} alt="" /><b>气 {player.qi ?? 0}/{player.maxQi ?? 6}</b></span><span className="yi-resource"><i className="cangsha-mark" /><b>苍砂 {player.cangsha ?? 0}/{player.maxCangsha ?? 6}</b></span><span className="yi-resource yi-injury">内伤 {player.internalInjury ?? 0}</span><span className="yi-resource yi-medicine">药斗 {player.medicineUses ?? 0}</span></div>}
+        {compactMode === false && player.isYi && <div className="yi-resources" aria-label="羿的特殊资源"><span className="yi-resource qi-resource"><b>气 {player.qi ?? 0}/{player.maxQi ?? 6}</b></span><span className="yi-resource"><b>苍砂 {player.cangsha ?? 0}/{player.maxCangsha ?? 6}</b></span><span className="yi-resource yi-injury">内伤 {player.internalInjury ?? 0}</span><span className="yi-resource yi-medicine">药斗 {player.medicineUses ?? 0}</span></div>}
         {compactMode === false && <div className="mana-meter" aria-label={`${player.name} 魔力 ${player.mana}/${player.maxMana}`}>
           <span className="mana-fill" style={{ transform: `scaleX(${manaPercent / 100})` }} />
           {isManaTarget && manaLossWidthPercent > 0 && <span className={`mana-loss ${manaVisual.phase === "erasing" ? "is-erasing" : ""}`} style={{ left: `${manaLossEndPercent}%`, width: `${manaLossWidthPercent}%` }} />}
@@ -178,12 +177,34 @@ function groupCommandsIntoLines(commands: CppRenderCommand[]) {
   return lines;
 }
 
+// 观看模式把一行技能按“命中段落”拆开：每个伤害/治疗结算及其后的短后缀算一段，避免逐字显示。
+function getWatchSegmentEnds(commands: CppRenderCommand[]) {
+  const ends: number[] = [];
+  let index = 0;
+  while (index < commands.length) {
+    const command = commands[index];
+    const isResolution = command.renderTone === 3 || command.renderTone === 4 || command.frontEndAnimation === "death" || command.frontEndAnimation === "familiar_depart";
+    if (!isResolution) { index++; continue; }
+    let end = index;
+    while (end + 1 < commands.length) {
+      const next = commands[end + 1];
+      const isShortSuffix = next.renderTone === 0 && next.text.length <= 4 && next.value === command.value && next.valueAfter === command.valueAfter;
+      if (!isShortSuffix) break;
+      end++;
+    }
+    ends.push(end);
+    index = end + 1;
+  }
+  if (ends.length === 0 || ends[ends.length - 1] !== commands.length - 1) ends.push(commands.length - 1);
+  return ends;
+}
+
 function toneClass(renderTone: number) {
   const toneMap: Record<number, string> = { 1: "tone-system", 2: "tone-skill", 3: "tone-damage", 4: "tone-heal", 5: "tone-status", 6: "tone-warning", 7: "tone-thunder", 8: "tone-freeze", 9: "tone-stack", 10: "tone-ironwall", 11: "tone-earthquake", 12: "tone-rage", 13: "tone-fire", 14: "tone-poison", 15: "tone-gold", 16: "tone-life-wheel", 17: "tone-summon" };
   return toneMap[renderTone] ?? "tone-normal";
 }
 
-export function BattlePlayback({ battle, onRestart, compactMode = false }: { battle: CppBattleSimulationResponse; onRestart: () => void; compactMode?: boolean }) {
+export function BattlePlayback({ battle, onRestart, compactMode = false, watchMode = false }: { battle: CppBattleSimulationResponse; onRestart: () => void; compactMode?: boolean; watchMode?: boolean }) {
   const events = useMemo(() => groupCommandsIntoLines(battle.commands), [battle.commands]);
   const [eventIndex, setEventIndex] = useState(0);
   const [segmentIndex, setSegmentIndex] = useState(0);
@@ -194,6 +215,8 @@ export function BattlePlayback({ battle, onRestart, compactMode = false }: { bat
   const [executeShakeTick, setExecuteShakeTick] = useState(0);
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
   const displayPlayersRef = useRef(displayPlayers);
+  const watchModeRef = useRef(watchMode);
+  watchModeRef.current = watchMode;
   const playbackStreamRef = useRef<HTMLDivElement | null>(null);
   const copyResetRef = useRef<number | null>(null);
   const damageAnimationIdRef = useRef(0);
@@ -245,8 +268,14 @@ export function BattlePlayback({ battle, onRestart, compactMode = false }: { bat
 
     const currentEvent = events[eventIndex];
     const isLongBattle = battle.longBattle !== false;
-    const hasSegmentPause = isLongBattle === false && currentEvent.length > 1;
-    const isFinalSegment = hasSegmentPause === false || segmentIndex >= currentEvent.length - 1;
+    const isWatchMode = watchModeRef.current;
+    const watchSegmentEnds = isWatchMode ? getWatchSegmentEnds(currentEvent) : [];
+    const segmentCount = isWatchMode ? watchSegmentEnds.length : currentEvent.length;
+    const hasSegmentPause = isWatchMode ? segmentCount > 1 : isLongBattle === false && currentEvent.length > 1;
+    const isFinalSegment = hasSegmentPause === false || segmentIndex >= segmentCount - 1;
+    const segmentStart = isWatchMode && segmentIndex > 0 ? watchSegmentEnds[Math.min(segmentIndex - 1, watchSegmentEnds.length - 1)] + 1 : 0;
+    const segmentEnd = isWatchMode ? watchSegmentEnds[Math.min(segmentIndex, watchSegmentEnds.length - 1)] : currentEvent.length - 1;
+    const segmentCommands = isWatchMode ? currentEvent.slice(segmentStart, segmentEnd + 1) : currentEvent;
     const statusCommands = new Map<number, CppRenderCommand>();
     for (const command of currentEvent) {
       const hasStatusSnapshot = command.frontEndAnimation === "status_sync" || [command.freezeStrength, command.freezeLayers, command.ironwallStrength, command.ironwallLayers, command.defenseDownStrength, command.defenseDownLayers, command.damageDownStrength, command.damageDownLayers, command.squareStrength, command.squareLayers, command.speedUpStrength, command.speedUpLayers, command.speedDownStrength, command.speedDownLayers, command.burnStrength, command.burnLayers, command.poisonStrength, command.poisonLayers, command.parryLayers, command.lamentLayers, command.targetLockLayers, command.qi, command.internalInjury, command.seekingLayers, command.talismanLayers, command.cangsha, command.medicineUses, command.playerName, command.playerMaxHp, command.playerPhysicalAttack, command.playerPhysicalDefense, command.playerMagicAttack, command.playerMagicDefense, command.playerSpeed].some((value) => value !== undefined);
@@ -302,19 +331,14 @@ export function BattlePlayback({ battle, onRestart, compactMode = false }: { bat
       setDisplayPlayers(nextPlayers);
     }
 
-    if (isFinalSegment === false) {
-      const segmentTimer = window.setTimeout(() => setSegmentIndex((index) => index + 1), 60);
-      return () => window.clearTimeout(segmentTimer);
-    }
-
-    const damageCommands = currentEvent.filter((command) => (command.renderTone === 3 || command.frontEndAnimation === "galahad_laser_damage") && (command.frontEndAnimation === "normal_attack_damage" || command.frontEndAnimation === "stab_damage" || command.frontEndAnimation === "critical_strike_damage" || command.frontEndAnimation === "lifesteal_damage" || command.frontEndAnimation === "galahad_slash_damage" || command.frontEndAnimation === "galahad_laser_damage" || command.frontEndAnimation === "parry_counter_damage" || command.frontEndAnimation === "counter_damage" || command.frontEndAnimation === "fireball_damage" || command.frontEndAnimation === "plague_damage" || command.frontEndAnimation === "burn_damage" || command.frontEndAnimation === "poison_damage" || command.frontEndAnimation === "status_damage" || command.frontEndAnimation === "thunder_damage" || command.frontEndAnimation === "thunder_damage_last" || command.frontEndAnimation === "earthquake_damage" || command.frontEndAnimation === "ice_damage" || command.frontEndAnimation === "life_wheel_damage" || command.frontEndAnimation === "world_search_damage" || command.frontEndAnimation === "world_execute_damage") && command.targetPlayerId !== 0);
-    const healCommand = currentEvent.find((command) => command.frontEndAnimation === "heal" || command.frontEndAnimation === "lifesteal_heal" || command.frontEndAnimation === "galahad_witch_heal" || command.frontEndAnimation === "status_heal" || command.frontEndAnimation === "revive_heal" || command.frontEndAnimation === "life_wheel_heal" || command.frontEndAnimation === "devour_heal");
-    const reviveCommand = currentEvent.find((command) => command.frontEndAnimation === "revive_heal");
-    const deathCommand = currentEvent.find((command) => command.frontEndAnimation === "death" || command.frontEndAnimation === "familiar_depart");
-    const worldExecutePulse = currentEvent.some((command) => command.frontEndAnimation === "world_execute");
-    const familiarSpawnCommand = currentEvent.find((command) => command.frontEndAnimation === "summon_spawn" && command.targetPlayerId !== 0);
-    const manaGainCommand = currentEvent.find((command) => command.frontEndAnimation === "mana_gain" && command.sourcePlayerId !== 0);
-    const manaCostCommand = currentEvent.find((command) => command.frontEndAnimation === "mana_cost" && command.sourcePlayerId !== 0);
+    const damageCommands = segmentCommands.filter((command) => (command.renderTone === 3 || command.frontEndAnimation === "galahad_laser_damage") && (command.frontEndAnimation === "normal_attack_damage" || command.frontEndAnimation === "stab_damage" || command.frontEndAnimation === "critical_strike_damage" || command.frontEndAnimation === "lifesteal_damage" || command.frontEndAnimation === "galahad_slash_damage" || command.frontEndAnimation === "galahad_laser_damage" || command.frontEndAnimation === "parry_counter_damage" || command.frontEndAnimation === "counter_damage" || command.frontEndAnimation === "fireball_damage" || command.frontEndAnimation === "plague_damage" || command.frontEndAnimation === "burn_damage" || command.frontEndAnimation === "poison_damage" || command.frontEndAnimation === "status_damage" || command.frontEndAnimation === "thunder_damage" || command.frontEndAnimation === "thunder_damage_last" || command.frontEndAnimation === "earthquake_damage" || command.frontEndAnimation === "ice_damage" || command.frontEndAnimation === "life_wheel_damage" || command.frontEndAnimation === "world_search_damage" || command.frontEndAnimation === "world_execute_damage" || command.frontEndAnimation === "yi_tri_damage" || command.frontEndAnimation === "yi_arrow_damage" || command.frontEndAnimation === "yi_qizhu_damage" || command.frontEndAnimation === "yi_seek_damage" || command.frontEndAnimation === "yi_internal_damage" || command.frontEndAnimation === "yi_electric_damage") && command.targetPlayerId !== 0);
+    const healCommand = segmentCommands.find((command) => command.frontEndAnimation === "heal" || command.frontEndAnimation === "lifesteal_heal" || command.frontEndAnimation === "galahad_witch_heal" || command.frontEndAnimation === "status_heal" || command.frontEndAnimation === "revive_heal" || command.frontEndAnimation === "life_wheel_heal" || command.frontEndAnimation === "devour_heal" || command.frontEndAnimation === "yi_medicine");
+    const reviveCommand = segmentCommands.find((command) => command.frontEndAnimation === "revive_heal");
+    const deathCommand = segmentCommands.find((command) => command.frontEndAnimation === "death" || command.frontEndAnimation === "familiar_depart");
+    const worldExecutePulse = segmentCommands.some((command) => command.frontEndAnimation === "world_execute");
+    const familiarSpawnCommand = segmentCommands.find((command) => command.frontEndAnimation === "summon_spawn" && command.targetPlayerId !== 0);
+    const manaGainCommand = segmentCommands.find((command) => command.frontEndAnimation === "mana_gain" && command.sourcePlayerId !== 0);
+    const manaCostCommand = segmentCommands.find((command) => command.frontEndAnimation === "mana_cost" && command.sourcePlayerId !== 0);
     if (familiarSpawnCommand) {
       const finalFamiliar = battle.finalPlayers.find((player) => player.id === familiarSpawnCommand.targetPlayerId && player.isFamiliar);
       if (finalFamiliar) {
@@ -373,9 +397,13 @@ export function BattlePlayback({ battle, onRestart, compactMode = false }: { bat
         }, 8);
         const nextTimer = window.setTimeout(() => {
           setManaVisual(null);
-          setSegmentIndex(0);
-          setEventIndex((index) => index + 1);
-        }, 80);
+          if (isWatchMode && isFinalSegment === false) {
+            setSegmentIndex((index) => index + 1);
+          } else {
+            setSegmentIndex(0);
+            setEventIndex((index) => index + 1);
+          }
+        }, isWatchMode ? 340 : 80);
         return () => { window.clearTimeout(eraseTimer); window.clearTimeout(nextTimer); };
       }
     }
@@ -391,9 +419,11 @@ export function BattlePlayback({ battle, onRestart, compactMode = false }: { bat
     const isBlankLine = currentEvent.every((command) => command.text.length === 0);
     const isNextFinalThunderEvent = events[eventIndex + 1]?.some((command) => command.frontEndAnimation === "thunder_damage_last") ?? false;
     const isEarthquakeDamage = currentEvent.some((command) => command.frontEndAnimation === "earthquake_damage");
-    const eventDelay = isBlankLine ? (isLongBattle ? 16 : 32) : isNextFinalThunderEvent ? (isLongBattle ? 110 : 180) : isEarthquakeDamage ? (isLongBattle ? 42 : 82) : (isLongBattle ? 48 : 96);
-    const lifeEraseDelay = Math.max(4, Math.floor(eventDelay * 0.05));
-    const lifeTransitionMs = Math.max(12, Math.floor(eventDelay * 0.5));
+    const eventDelay = isWatchMode ? (isBlankLine ? 240 : 1000) : isBlankLine ? (isLongBattle ? 16 : 32) : isNextFinalThunderEvent ? (isLongBattle ? 110 : 180) : isEarthquakeDamage ? (isLongBattle ? 42 : 82) : (isLongBattle ? 48 : 96);
+    const segmentDelay = isWatchMode ? 820 : 60;
+    const animationBaseDelay = isWatchMode ? 900 : eventDelay;
+    const lifeEraseDelay = Math.max(4, Math.floor(animationBaseDelay * 0.05));
+    const lifeTransitionMs = Math.max(12, Math.floor(animationBaseDelay * 0.5));
     const timers: number[] = [];
 
     if (worldExecutePulse) setExecuteShakeTick((tick) => tick + 1);
@@ -456,6 +486,14 @@ export function BattlePlayback({ battle, onRestart, compactMode = false }: { bat
         displayPlayersRef.current = nextPlayers;
         return nextPlayers;
       });
+    }
+
+    if (isFinalSegment === false) {
+      const segmentTimer = window.setTimeout(() => setSegmentIndex((index) => index + 1), segmentDelay);
+      return () => {
+        for (const timer of timers) window.clearTimeout(timer);
+        window.clearTimeout(segmentTimer);
+      };
     }
 
     const nextTimer = window.setTimeout(() => {
@@ -531,6 +569,7 @@ export function BattlePlayback({ battle, onRestart, compactMode = false }: { bat
             <h1>战斗</h1>
             <div className="playback-header-actions">
               <span>{Math.min(eventIndex + 1, events.length)}/{events.length}</span>
+              {watchMode && <span className="watch-mode-badge" title="观看模式：逐段慢速播放">观看模式</span>}
               <button className={`restart-button copy-roster-button ${copyState !== "idle" ? `is-${copyState}` : ""}`} type="button" onClick={copyRoster} aria-live="polite">
                 {copyState === "copied" ? "名单已复制" : copyState === "failed" ? "复制失败" : "复制上局名单"}
               </button>
@@ -539,7 +578,14 @@ export function BattlePlayback({ battle, onRestart, compactMode = false }: { bat
           </header>
           <div className="playback-stream" ref={playbackStreamRef} aria-live="polite">
             {renderedEvents.map((event, index) => {
-              const shownCommands = battle.longBattle === false && index === eventIndex && event.length > 1 ? event.slice(0, segmentIndex + 1) : event;
+              const shownCommands = (() => {
+                if (index !== eventIndex) return event;
+                if (watchMode) {
+                  const ends = getWatchSegmentEnds(event);
+                  return event.slice(0, ends[Math.min(segmentIndex, ends.length - 1)] + 1);
+                }
+                return battle.longBattle === false && event.length > 1 ? event.slice(0, segmentIndex + 1) : event;
+              })();
               const visibleCommands = shownCommands.filter((command) => command.frontEndAnimation !== "status_sync");
               const guardNames = new Set(event.filter((command) => command.frontEndAnimation === "guard" && command.text !== "守护").map((command) => command.text));
               return visibleCommands.length > 0 ? <p className="battle-line" key={`${index}-${visibleCommands.map((command) => command.text).join("")}`}>{visibleCommands.map((command, commandIndex) => {
@@ -568,6 +614,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [longBattle, setLongBattle] = useState(true);
   const [compactMode, setCompactMode] = useState(false);
+  const [watchMode, setWatchMode] = useState(false);
 
   const startBattle = async () => {
     if (!names.trim()) { setError("请输入至少两个名字，并用空行分隔队伍。"); return; }
@@ -579,7 +626,7 @@ export default function Home() {
     finally { setLoading(false); }
   };
 
-  if (battle) return <BattlePlayback battle={battle} compactMode={compactMode} onRestart={() => { setBattle(null); setError(""); }} />;
+  if (battle) return <BattlePlayback battle={battle} compactMode={compactMode} watchMode={watchMode} onRestart={() => { setBattle(null); setError(""); }} />;
 
   return (
     <main className="start-screen">
@@ -597,6 +644,11 @@ export default function Home() {
           <span className="battle-mode-indicator" aria-hidden="true" />
           <span>简略模式</span>
           <small>{compactMode ? "开启：隐藏魔力与状态，血条密集" : "关闭：完整显示"}</small>
+        </button>
+        <button className={`battle-mode-toggle ${watchMode ? "is-active" : ""}`} type="button" aria-pressed={watchMode} onClick={() => setWatchMode((value) => !value)}>
+          <span className="battle-mode-indicator" aria-hidden="true" />
+          <span>观看模式</span>
+          <small>{watchMode ? "开启：逐段慢放，一次只出一段" : "关闭：连续快速播放"}</small>
         </button>
         {error && <p id="input-error" className="input-error" role="alert">{error}</p>}
         <p className="start-cta-hint">名单就绪后开战</p>

@@ -550,230 +550,202 @@ int get_iq(int x)
     return p[x].iq;
 }
 
-// 根据名字 s 创建一名玩家；id 是输入解析得到的队伍编号；long_battle 决定是否保留完整生命。
-void make_player(const string& s , int id , bool long_battle)
+// Boss 的固定面板、专属资源和技能池集中配置；普通角色不经过这条配置通道。
+struct BossProfile
 {
-    n++; // 分配新的 1-index 玩家座位。
-    uint64_t h = get_hash("name-arena:" + s); // 身份属性和固定技能权重的确定性随机状态。
-    uint64_t fh = get_hash("spell-arena:" + s); // 法术技能资格的独立名字哈希状态；每项法术直接进行 50% 判定。
-    uint64_t qh = get_hash("fast-action-arena:" + s); // 快速行动的独立法术资格哈希，不扰动既有法术资格。
-    uint64_t ph = get_hash("plague-arena:" + s); // 瘟疫的独立法术资格哈希，不扰动既有法术资格。
-    uint64_t rh = get_hash("revive-arena:" + s); // 复苏术的独立法术资格哈希，不扰动既有法术资格。
-    uint64_t lh = get_hash("life-wheel-arena:" + s); // 生命之轮的独立法术资格哈希，不扰动既有法术资格。
-    uint64_t uh = get_hash("summon-arena:" + s); // 召唤术的独立法术资格哈希，不扰动既有技能资格。
-    uint64_t dh = get_hash("last-stand-arena:" + s); // 垂死抵抗的独立被动资格哈希，不扰动其他技能资格。
-    uint64_t ch = get_hash("counter-arena:" + s); // 反击的独立被动资格哈希，不扰动其他技能资格。
-    uint64_t eh = get_hash("devour-arena:" + s); // 吞噬的独立被动资格哈希，不扰动其他技能资格。
-    uint64_t nh = get_hash("nonspell-arena:" + s); // 非法术技能资格的独立名字哈希状态，不扰动既有属性、法术资格和权重。
+    const char* token;
+    const char* display_name;
+    int maxhp;
+    int atk;
+    int def;
+    int spd;
+    int satk;
+    int sdef;
+    int iq;
+    int mreg;
+    bool is_mili;
+    bool is_yi;
+    int yi_cangsha;
+    int yi_medicine_uses;
+    int mili_food_mask;
+    int skill_count;
+    array<void (*)(int) , 5> skills;
+    array<int , 5> weights;
+};
 
+const BossProfile* find_boss_profile(const string& token)
+{
+    static const array<BossProfile , 3> profiles = {{
+        {"tommy@!" , "张洋" , 2500 , 100 , 60 , 4000 , 180 , 50 , 200 , 100 , false , false , 0 , 0 , 0 , 1 , {string_skill , nullptr , nullptr , nullptr , nullptr} , {1 , 0 , 0 , 0 , 0}},
+        {"mili@!" , "mili" , 3000 , 200 , 45 , 2000 , 200 , 50 , 0 , 0 , true , false , 0 , 0 , 31 , 5 , {double_island_milk , summon_moon_child , summon_scientific_witch , lament , eat_food} , {1 , 15 , 10 , 10 , 10}},
+        {"yi@!" , "羿" , 3000 , 100 , 20 , 5000 , 200 , 50 , 200 , 0 , false , true , 6 , 7 , 0 , 4 , {tri_yuan_sword , cang_bow , tie_fu , yao_dou , nullptr} , {1 , 1 , 1 , 1 , 0}}
+    }};
+    for(const BossProfile& profile : profiles) if(token == profile.token) return &profile;
+    return nullptr;
+}
+
+// 所有新单位共用清零入口；后续由 Boss 或普通角色通道各自填入面板和技能。
+int begin_player_initialization(const string& name , int id)
+{
+    n++;
     p[n] = Player();
     p[n].skill.fill(nullptr);
     p[n].can.fill(false);
     p[n].w.fill(0);
     p[n].tmp.clear();
     p[n].tmp_free.clear();
-    bool is_zhang_yang = s == "tommy@!"; // 输入标记只用于识别张洋 Boss，前端与日志统一显示中文名“张洋”。
-    bool is_mili = s == "mili@!"; // 输入标记只用于识别 mili Boss；前端与日志均显示 mili。
-    bool is_yi = s == "yi@!"; // 输入标记只用于识别羿 Boss，前端与日志统一显示“羿”。
-    p[n].name = is_zhang_yang ? "张洋" : is_mili ? "mili" : is_yi ? "羿" : s;
+    p[n].name = name;
     p[n].no = n;
     p[n].id = id;
-    p[n].maxhp = is_mili ? 3000 : is_yi ? 3000 : is_zhang_yang ? 2500 : get_val(h , 400 , 800);
-    if(long_battle == false) p[n].maxhp /= 2; // 短对局将普通角色及固定生命 Boss 的生命一并减半。
-    p[n].hp = p[n].maxhp;
-    p[n].atk = is_mili ? 200 : is_yi ? 100 : is_zhang_yang ? 100 : get_val(h , 70 , 130);
-    p[n].def = is_mili ? 45 : is_yi ? 20 : is_zhang_yang ? 60 : get_val(h , 30 , 60);
-    p[n].spd = is_mili ? 2000 : is_yi ? 5000 : is_zhang_yang ? 4000 : get_val(h , 800 , 1200);
-    p[n].satk = is_mili ? 200 : is_yi ? 200 : is_zhang_yang ? 180 : get_val(h , 100 , 200);
-    p[n].sdef = is_mili ? 50 : is_yi ? 50 : is_zhang_yang ? 50 : get_val(h , 0 , 100);
-    p[n].iq = is_mili ? 0 : is_yi ? 200 : is_zhang_yang ? 200 : get_val(h , 100 , 200);
-    uint64_t mh = get_hash("mana-arena:" + s); // 独立于基础属性的回魔正态分布种子。
-    p[n].mreg = is_mili ? 0 : is_yi ? 0 : is_zhang_yang ? 100 : get_normal(mh , 20 , 40);
-    p[n].maxmagic = 200;
-    p[n].magic = 0;
-    p[n].freeze = 0;
-    p[n].freeze_int = 0;
-    p[n].def_plus_int = 0;
-    p[n].def_plus_time = 0;
-    p[n].def_down_int = 0;
-    p[n].def_down_time = 0;
-    p[n].damage_down_int = 0;
-    p[n].damage_down_time = 0;
-    p[n].damage_up_int = 0;
-    p[n].damage_up_time = 0;
-    p[n].attack_up_int = 0;
-    p[n].attack_up_time = 0;
-    p[n].square_int = 0;
-    p[n].square_time = 0;
     p[n].blood_int = 10;
-    p[n].burn_int = 0;
-    p[n].burn_time = 0;
-    p[n].posion_int = 0;
-    p[n].poison_time = 0;
-    p[n].parry_time = 0;
-    p[n].lament_time = 0;
-    p[n].target_lock_time = 0;
-    p[n].target_lock_team = 0;
-    p[n].has_guard = false;
-    p[n].has_last_stand = get_val(dh , 0 , 99) < 15;
-    p[n].last_stand_used = false;
-    p[n].has_counter = get_val(ch , 0 , 99) < 40;
-    p[n].has_devour = get_val(eh , 0 , 99) < 10;
-    p[n].is_boss = is_zhang_yang || is_mili || is_yi;
-    p[n].is_mili = is_mili;
-    p[n].is_yi = is_yi;
-    p[n].yi_qi = 0;
-    p[n].yi_cangsha = is_yi ? 6 : 0;
-    p[n].yi_internal_injury = 0;
-    p[n].yi_seeking = 0;
-    p[n].yi_talisman_layers = 0;
-    p[n].yi_medicine_uses = is_yi ? 7 : 0;
-    p[n].yi_infusion_pending = false;
-    p[n].yi_infusion_target = 0;
-    p[n].yi_infusion_qi = 0;
-    p[n].yi_arrow_deck_ready = false;
-    p[n].yi_arrow_cursor = 0;
-    p[n].is_break_arrow = false;
-    p[n].mili_skill_turn = 0;
-    p[n].mili_milk_count = 0;
-    p[n].mili_food_mask = is_mili ? 31 : 0;
-    p[n].mili_witch_summoned = false;
-    p[n].boss_string_count = 0;
-    p[n].boss_magic_ready = false;
-    p[n].is_familiar = false;
-    p[n].is_moon_child = false;
-    p[n].is_k2 = false;
-    p[n].is_scientific_witch = false;
-    p[n].is_lancelot_zero = false;
-    p[n].is_broken_lancelot_zero = false;
-    p[n].has_rebirth_potion = false;
-    p[n].is_inert = false;
-    p[n].owner = 0;
-    p[n].magic_vuln = 0;
-    p[n].spd_up_int = 0;
-    p[n].spd_up_time = 0;
-    p[n].spd_down_int = 0;
-    p[n].spd_down_time = 0;
-    p[n].act = 0;
+    p[n].maxmagic = 200;
     p[n].alive = true;
+    return n;
+}
 
-    if(p[n].is_boss)
+// Boss 使用配置表中的固定属性与技能，不抽取普通角色被动、技能资格或随机权重。
+void initialize_boss_player(int slot , const BossProfile& profile , bool long_battle)
+{
+    p[slot].name = profile.display_name;
+    p[slot].maxhp = profile.maxhp;
+    if(long_battle == false) p[slot].maxhp /= 2;
+    p[slot].hp = p[slot].maxhp;
+    p[slot].atk = profile.atk;
+    p[slot].def = profile.def;
+    p[slot].spd = profile.spd;
+    p[slot].satk = profile.satk;
+    p[slot].sdef = profile.sdef;
+    p[slot].iq = profile.iq;
+    p[slot].mreg = profile.mreg;
+    p[slot].is_boss = true;
+    p[slot].is_mili = profile.is_mili;
+    p[slot].is_yi = profile.is_yi;
+    p[slot].has_guard = false;
+    p[slot].has_last_stand = false;
+    p[slot].has_counter = false;
+    p[slot].has_devour = false;
+    p[slot].yi_cangsha = profile.yi_cangsha;
+    p[slot].yi_medicine_uses = profile.yi_medicine_uses;
+    p[slot].mili_food_mask = profile.mili_food_mask;
+    p[slot].sn = profile.skill_count;
+    for(int i = 1; i <= profile.skill_count; ++i)
     {
-        // Boss 不继承普通角色的随机技能、被动或吞噬规则；已公布的“串”会由 use_skill 强制执行。
-        p[n].has_guard = false;
-        p[n].has_last_stand = false;
-        p[n].has_counter = false;
-        p[n].has_devour = false;
-        p[n].sn = is_yi ? 4 : is_mili ? 5 : 1;
-        p[n].skill[1] = is_yi ? tri_yuan_sword : is_mili ? double_island_milk : string_skill;
-        p[n].can[1] = true;
-        p[n].w[1] = 1;
-        if(is_yi)
-        {
-            p[n].skill[2] = cang_bow;
-            p[n].can[2] = true;
-            p[n].w[2] = 1;
-            p[n].skill[3] = tie_fu;
-            p[n].can[3] = true;
-            p[n].w[3] = 1;
-            p[n].skill[4] = yao_dou;
-            p[n].can[4] = true;
-            p[n].w[4] = 1;
-        }
-        if(is_mili)
-        {
-            p[n].skill[2] = summon_moon_child;
-            p[n].can[2] = true;
-            p[n].w[2] = 15;
-            p[n].skill[3] = summon_scientific_witch;
-            p[n].can[3] = true;
-            p[n].w[3] = 10;
-            p[n].skill[4] = lament;
-            p[n].can[4] = true;
-            p[n].w[4] = 10;
-            p[n].skill[5] = eat_food;
-            p[n].can[5] = true;
-            p[n].w[5] = 10;
-        }
-        return;
+        p[slot].skill[i] = profile.skills[i - 1];
+        p[slot].can[i] = true;
+        p[slot].w[i] = profile.weights[i - 1];
     }
+}
+
+// 普通角色独立派生名字属性、随机被动、技能资格和技能权重；哈希域彼此隔离以保持角色可复现。
+void initialize_regular_player(int slot , const string& s , bool long_battle)
+{
+    uint64_t h = get_hash("name-arena:" + s);
+    uint64_t fh = get_hash("spell-arena:" + s);
+    uint64_t qh = get_hash("fast-action-arena:" + s);
+    uint64_t ph = get_hash("plague-arena:" + s);
+    uint64_t rh = get_hash("revive-arena:" + s);
+    uint64_t lh = get_hash("life-wheel-arena:" + s);
+    uint64_t uh = get_hash("summon-arena:" + s);
+    uint64_t dh = get_hash("last-stand-arena:" + s);
+    uint64_t ch = get_hash("counter-arena:" + s);
+    uint64_t eh = get_hash("devour-arena:" + s);
+    uint64_t nh = get_hash("nonspell-arena:" + s);
+
+    uint64_t mh = get_hash("mana-arena:" + s);
+    p[slot].maxhp = get_val(h , 400 , 800);
+    if(long_battle == false) p[slot].maxhp /= 2;
+    p[slot].hp = p[slot].maxhp;
+    p[slot].atk = get_val(h , 70 , 130);
+    p[slot].def = get_val(h , 30 , 60);
+    p[slot].spd = get_val(h , 800 , 1200);
+    p[slot].satk = get_val(h , 100 , 200);
+    p[slot].sdef = get_val(h , 0 , 100);
+    p[slot].iq = get_val(h , 100 , 200);
+    p[slot].mreg = get_normal(mh , 20 , 40);
+    p[slot].is_boss = false;
+    p[slot].is_mili = false;
+    p[slot].is_yi = false;
+    p[slot].has_last_stand = get_val(dh , 0 , 99) < 15;
+    p[slot].has_counter = get_val(ch , 0 , 99) < 40;
+    p[slot].has_devour = get_val(eh , 0 , 99) < 10;
+
     array<int , 7> nonspell_slot; // 当前已登记的非法术技能槽编号；六种非法术候选保持 1-index。
     int nonspell_num = 0; // 已登记的非法术技能种类数量。
-    p[n].sn = 1;
-    p[n].skill[1] = basic_attack;
-    p[n].can[1] = true;
-    p[n].sn++;
-    p[n].skill[p[n].sn] = thunder;
-    p[n].can[p[n].sn] = get_satk(n) >= 150 && get_val(fh , 0 , 1) == 1;
-    p[n].w[p[n].sn] = get_val(h , 0 , 10);
-    p[n].sn++;
-    p[n].skill[p[n].sn] = earthquake;
-    p[n].can[p[n].sn] = get_val(fh , 0 , 1) == 1;
-    p[n].w[p[n].sn] = get_val(h , 0 , 10);
-    p[n].sn++;
-    p[n].skill[p[n].sn] = rage;
-    p[n].can[p[n].sn] = get_val(fh , 0 , 1) == 1;
-    p[n].w[p[n].sn] = get_val(h , 0 , 10);
-    p[n].sn++;
-    p[n].skill[p[n].sn] = ice;
-    p[n].can[p[n].sn] = get_satk(n) >= 150 && get_val(fh , 0 , 1) == 1;
-    p[n].w[p[n].sn] = get_val(h , 0 , 10);
-    p[n].sn++;
-    p[n].skill[p[n].sn] = heal_magic;
-    p[n].can[p[n].sn] = get_val(fh , 0 , 1) == 1;
-    p[n].w[p[n].sn] = get_val(h , 0 , 10);
-    p[n].sn++;
-    p[n].skill[p[n].sn] = purify;
-    p[n].can[p[n].sn] = get_val(fh , 0 , 1) == 1;
-    p[n].w[p[n].sn] = get_val(h , 0 , 10);
-    p[n].sn++;
-    p[n].skill[p[n].sn] = ironwall;
-    p[n].can[p[n].sn] = get_val(fh , 0 , 1) == 1;
-    p[n].w[p[n].sn] = get_val(h , 0 , 10);
-    p[n].sn++;
-    p[n].skill[p[n].sn] = stab;
+    p[slot].sn = 1;
+    p[slot].skill[1] = basic_attack;
+    p[slot].can[1] = true;
+    p[slot].sn++;
+    p[slot].skill[p[slot].sn] = thunder;
+    p[slot].can[p[slot].sn] = get_satk(slot) >= 150 && get_val(fh , 0 , 1) == 1;
+    p[slot].w[p[slot].sn] = get_val(h , 0 , 10);
+    p[slot].sn++;
+    p[slot].skill[p[slot].sn] = earthquake;
+    p[slot].can[p[slot].sn] = get_val(fh , 0 , 1) == 1;
+    p[slot].w[p[slot].sn] = get_val(h , 0 , 10);
+    p[slot].sn++;
+    p[slot].skill[p[slot].sn] = rage;
+    p[slot].can[p[slot].sn] = get_val(fh , 0 , 1) == 1;
+    p[slot].w[p[slot].sn] = get_val(h , 0 , 10);
+    p[slot].sn++;
+    p[slot].skill[p[slot].sn] = ice;
+    p[slot].can[p[slot].sn] = get_satk(slot) >= 150 && get_val(fh , 0 , 1) == 1;
+    p[slot].w[p[slot].sn] = get_val(h , 0 , 10);
+    p[slot].sn++;
+    p[slot].skill[p[slot].sn] = heal_magic;
+    p[slot].can[p[slot].sn] = get_val(fh , 0 , 1) == 1;
+    p[slot].w[p[slot].sn] = get_val(h , 0 , 10);
+    p[slot].sn++;
+    p[slot].skill[p[slot].sn] = purify;
+    p[slot].can[p[slot].sn] = get_val(fh , 0 , 1) == 1;
+    p[slot].w[p[slot].sn] = get_val(h , 0 , 10);
+    p[slot].sn++;
+    p[slot].skill[p[slot].sn] = ironwall;
+    p[slot].can[p[slot].sn] = get_val(fh , 0 , 1) == 1;
+    p[slot].w[p[slot].sn] = get_val(h , 0 , 10);
+    p[slot].sn++;
+    p[slot].skill[p[slot].sn] = stab;
     nonspell_num++;
-    nonspell_slot[nonspell_num] = p[n].sn;
-    p[n].can[p[n].sn] = false;
-    p[n].w[p[n].sn] = get_val(h , 0 , 10);
-    p[n].sn++;
-    p[n].skill[p[n].sn] = lifesteal_attack;
+    nonspell_slot[nonspell_num] = p[slot].sn;
+    p[slot].can[p[slot].sn] = false;
+    p[slot].w[p[slot].sn] = get_val(h , 0 , 10);
+    p[slot].sn++;
+    p[slot].skill[p[slot].sn] = lifesteal_attack;
     nonspell_num++;
-    nonspell_slot[nonspell_num] = p[n].sn;
-    p[n].can[p[n].sn] = false;
-    p[n].w[p[n].sn] = get_val(h , 0 , 10);
-    p[n].sn++;
-    p[n].skill[p[n].sn] = poison;
+    nonspell_slot[nonspell_num] = p[slot].sn;
+    p[slot].can[p[slot].sn] = false;
+    p[slot].w[p[slot].sn] = get_val(h , 0 , 10);
+    p[slot].sn++;
+    p[slot].skill[p[slot].sn] = poison;
     nonspell_num++;
-    nonspell_slot[nonspell_num] = p[n].sn;
-    p[n].can[p[n].sn] = false;
-    p[n].w[p[n].sn] = get_val(h , 0 , 10);
-    p[n].sn++;
-    p[n].skill[p[n].sn] = critical_strike;
+    nonspell_slot[nonspell_num] = p[slot].sn;
+    p[slot].can[p[slot].sn] = false;
+    p[slot].w[p[slot].sn] = get_val(h , 0 , 10);
+    p[slot].sn++;
+    p[slot].skill[p[slot].sn] = critical_strike;
     nonspell_num++;
-    nonspell_slot[nonspell_num] = p[n].sn;
-    p[n].can[p[n].sn] = false;
-    p[n].w[p[n].sn] = get_val(h , 0 , 10);
-    p[n].sn++;
-    p[n].skill[p[n].sn] = parry;
+    nonspell_slot[nonspell_num] = p[slot].sn;
+    p[slot].can[p[slot].sn] = false;
+    p[slot].w[p[slot].sn] = get_val(h , 0 , 10);
+    p[slot].sn++;
+    p[slot].skill[p[slot].sn] = parry;
     nonspell_num++;
-    nonspell_slot[nonspell_num] = p[n].sn;
-    p[n].can[p[n].sn] = false;
-    p[n].w[p[n].sn] = get_val(h , 0 , 10);
-    p[n].sn++;
-    p[n].skill[p[n].sn] = guard;
+    nonspell_slot[nonspell_num] = p[slot].sn;
+    p[slot].can[p[slot].sn] = false;
+    p[slot].w[p[slot].sn] = get_val(h , 0 , 10);
+    p[slot].sn++;
+    p[slot].skill[p[slot].sn] = guard;
     nonspell_num++;
-    nonspell_slot[nonspell_num] = p[n].sn;
-    int guard_slot = p[n].sn; // 守护仅用于受击时的被动判定，不进入主动特殊技能池。
-    p[n].can[p[n].sn] = false;
-    p[n].w[p[n].sn] = 0;
+    nonspell_slot[nonspell_num] = p[slot].sn;
+    int guard_slot = p[slot].sn; // 守护仅用于受击时的被动判定，不进入主动特殊技能池。
+    p[slot].can[p[slot].sn] = false;
+    p[slot].w[p[slot].sn] = 0;
     int nonspell_have = 0; // 当前角色已获得的非法术数量。
     int nonspell_chance = 4000; // 首项非法术的 40.00% 获取概率，单位为万分之一。
 
     for(int i = 1;i <= nonspell_num && nonspell_have < 5;++ i)
     {
         if(get_val(nh , 0 , 9999) >= nonspell_chance) continue;
-        p[n].can[nonspell_slot[i]] = true;
+        p[slot].can[nonspell_slot[i]] = true;
         nonspell_have++;
         nonspell_chance = nonspell_chance * 30 / 100; // 每获得一项，后续非法术概率乘以 30%。
     }
@@ -782,42 +754,51 @@ void make_player(const string& s , int id , bool long_battle)
     {
         vector<int> candidate;
 
-        for(int i = 1;i <= nonspell_num;++ i) if(p[n].can[nonspell_slot[i]] == false) candidate.push_back(nonspell_slot[i]);
+        for(int i = 1;i <= nonspell_num;++ i) if(p[slot].can[nonspell_slot[i]] == false) candidate.push_back(nonspell_slot[i]);
         if(candidate.empty()) break;
-        int slot = candidate[get_val(nh , 0 , (int)candidate.size() - 1)]; // 保底从尚未获得的非法术中随机选择，确保每名角色至少拥有两项。
-        p[n].can[slot] = true;
+        int skill_slot = candidate[get_val(nh , 0 , (int)candidate.size() - 1)]; // 保底从尚未获得的非法术中随机选择，确保每名角色至少拥有两项。
+        p[slot].can[skill_slot] = true;
         nonspell_have++;
     }
-    p[n].has_guard = p[n].can[guard_slot];
-    p[n].sn++;
-    p[n].skill[p[n].sn] = fireball;
-    p[n].can[p[n].sn] = get_val(fh , 0 , 1) == 1;
-    p[n].w[p[n].sn] = get_val(h , 0 , 10);
-    p[n].sn++;
-    p[n].skill[p[n].sn] = plague;
-    p[n].can[p[n].sn] = get_val(ph , 0 , 1) == 1;
-    p[n].w[p[n].sn] = get_val(h , 0 , 10);
-    p[n].sn++;
-    p[n].skill[p[n].sn] = fast_action;
-    p[n].can[p[n].sn] = get_val(qh , 0 , 1) == 1;
-    p[n].w[p[n].sn] = get_val(h , 0 , 10);
-    p[n].sn++;
-    p[n].skill[p[n].sn] = revive;
-    p[n].can[p[n].sn] = get_val(rh , 0 , 1) == 1;
-    p[n].w[p[n].sn] = get_val(h , 0 , 10);
-    p[n].sn++;
-    p[n].skill[p[n].sn] = life_wheel;
-    p[n].can[p[n].sn] = get_val(lh , 0 , 1) == 1;
-    p[n].w[p[n].sn] = get_val(h , 0 , 10);
-    p[n].sn++;
-    p[n].skill[p[n].sn] = summon;
-    p[n].can[p[n].sn] = get_val(uh , 0 , 1) == 1;
-    p[n].w[p[n].sn] = get_val(h , 0 , 10);
+    p[slot].has_guard = p[slot].can[guard_slot];
+    p[slot].sn++;
+    p[slot].skill[p[slot].sn] = fireball;
+    p[slot].can[p[slot].sn] = get_val(fh , 0 , 1) == 1;
+    p[slot].w[p[slot].sn] = get_val(h , 0 , 10);
+    p[slot].sn++;
+    p[slot].skill[p[slot].sn] = plague;
+    p[slot].can[p[slot].sn] = get_val(ph , 0 , 1) == 1;
+    p[slot].w[p[slot].sn] = get_val(h , 0 , 10);
+    p[slot].sn++;
+    p[slot].skill[p[slot].sn] = fast_action;
+    p[slot].can[p[slot].sn] = get_val(qh , 0 , 1) == 1;
+    p[slot].w[p[slot].sn] = get_val(h , 0 , 10);
+    p[slot].sn++;
+    p[slot].skill[p[slot].sn] = revive;
+    p[slot].can[p[slot].sn] = get_val(rh , 0 , 1) == 1;
+    p[slot].w[p[slot].sn] = get_val(h , 0 , 10);
+    p[slot].sn++;
+    p[slot].skill[p[slot].sn] = life_wheel;
+    p[slot].can[p[slot].sn] = get_val(lh , 0 , 1) == 1;
+    p[slot].w[p[slot].sn] = get_val(h , 0 , 10);
+    p[slot].sn++;
+    p[slot].skill[p[slot].sn] = summon;
+    p[slot].can[p[slot].sn] = get_val(uh , 0 , 1) == 1;
+    p[slot].w[p[slot].sn] = get_val(h , 0 , 10);
 
-    if(p[n].has_devour)
+    if(p[slot].has_devour)
     {
-        for(int i = 1;i <= p[n].sn;++ i) if(spell(p[n].skill[i])) p[n].can[i] = false;
+        for(int i = 1;i <= p[slot].sn;++ i) if(spell(p[slot].skill[i])) p[slot].can[i] = false;
     }
+}
+
+// 角色入口只负责分流：已登记 Boss 走固定配置，其他名字走普通角色生成器。
+void make_player(const string& s , int id , bool long_battle)
+{
+    int slot = begin_player_initialization(s , id);
+    const BossProfile* boss = find_boss_profile(s);
+    if(boss != nullptr) initialize_boss_player(slot , *boss , long_battle);
+    else initialize_regular_player(slot , s , long_battle);
 }
 
 // 判断一行是否只包含空格或制表符；这类行用于分隔队伍。
@@ -3211,11 +3192,21 @@ bool yi_has_negative_status(int x)
     return p[x].freeze > 0 || p[x].burn_time > 0 || p[x].poison_time > 0 || p[x].def_down_time > 0 || p[x].damage_down_time > 0 || p[x].spd_down_time > 0 || p[x].square_time > 0 || p[x].target_lock_time > 0 || p[x].lament_time > 0;
 }
 
+// 药斗在有负面状态或生命低于 50% 时加权；两种条件同时满足时叠加提升。
+int yi_medicine_weight(int x)
+{
+    if(p[x].yi_medicine_uses <= 0) return 0;
+    int weight = 1;
+    if(yi_has_negative_status(x)) weight += 80;
+    if(p[x].hp * 100 < get_maxhp(x) * 50) weight += 30;
+    return weight;
+}
+
 void use_yi(int x)
 {
     if(p[x].yi_infusion_pending == false)
     {
-        int medicine_weight = p[x].yi_medicine_uses > 0 ? (yi_has_negative_status(x) ? 80 : p[x].hp * 100 < get_maxhp(x) * 50 ? 3 : 1) : 0;
+        int medicine_weight = yi_medicine_weight(x);
         int tie_weight = p[x].yi_qi >= 3 ? 60 : 0;
         int sword_weight = 40;
         int bow_weight = p[x].yi_cangsha > 0 ? 3 : 0;
@@ -3427,7 +3418,7 @@ int special_weight(int x , int i)
     if(p[x].is_yi && p[x].skill[i] == tie_fu) return 60;
     if(p[x].is_yi && p[x].skill[i] == tri_yuan_sword) return 40;
     if(p[x].is_yi && p[x].skill[i] == cang_bow) return 3;
-    if(p[x].is_yi && p[x].skill[i] == yao_dou) return yi_has_negative_status(x) ? 80 : 1;
+    if(p[x].is_yi && p[x].skill[i] == yao_dou) return yi_medicine_weight(x);
     if(p[x].skill[i] == heal_magic && p[x].hp * 100 < get_maxhp(x) * 40 && get_iq(x) > 100)
     {
         return p[x].w[i] + (get_iq(x) - 100) * 1000000;

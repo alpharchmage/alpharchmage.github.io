@@ -38,17 +38,6 @@ jobs:
           pnpm test --passWithNoTests
           pnpm check
 
-      - name: Build WebAssembly with Emscripten 7.0.0
-        shell: bash
-        run: |
-          git clone --depth 1 https://github.com/emscripten-core/emsdk.git "$RUNNER_TEMP/emsdk"
-          cd "$RUNNER_TEMP/emsdk"
-          ./emsdk install 7.0.0
-          ./emsdk activate 7.0.0
-          source ./emsdk_env.sh
-          cd "$GITHUB_WORKSPACE"
-          bash cpp/build_wasm.sh
-
       - name: Build website
         run: pnpm build
 

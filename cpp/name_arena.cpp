@@ -239,7 +239,7 @@ struct Cmd
 array<Player , MAXN> p; // 本局玩家表，p[1] 到 p[n] 有效。
 array<int , MAXN> vis; // 队伍去重访问标记，用于统计存活队伍数量。
 array<bool , MAXN> revive_used; // 各队本局是否已成功施放过复苏术；队伍编号作为下标。
-enum HurtType { HURT_DIRECT , HURT_PLAGUE , HURT_BURN , HURT_POISON , HURT_LIFE_WHEEL , HURT_COUNTER , HURT_MAGIC , HURT_INTERNAL }; // 统一伤害管线来源；羿仅格挡物理类，魔法/持续/内伤分别走特殊结算。
+enum HurtType { HURT_DIRECT , HURT_PLAGUE , HURT_BURN , HURT_POISON , HURT_LIFE_WHEEL , HURT_COUNTER , HURT_MAGIC , HURT_INTERNAL }; // 统一伤害管线来源；是否可格挡由 take_hit 的独立标记控制。
 void on_yi_special_hit(int source , int target , int sid , HurtType type);
 vector<Cmd> e = vector<Cmd>(1); // 全部渲染指令；首个空元素保证有效指令从下标 1 开始。
 int n = 0; // 本局玩家数量。
@@ -259,7 +259,7 @@ int get_def(int x); // 返回角色当前有效物防。
 int get_spd(int x); // 返回角色当前有效速度。
 int get_satk(int x); // 返回角色当前有效魔攻。
 int get_sdef(int x); // 返回角色当前有效魔防。
-int take_hit(int x , int it , int d , int sid , const string& ani , const string& damage_ani , const string& damage_suffix = "伤害" , HurtType type = HURT_DIRECT , bool passive_counter_attack = false , bool end_line = true , int* dealt = nullptr); // 所有直接攻击统一使用的受击前判定入口；dealt 可取得本次实际造成的总伤害。
+int take_hit(int x , int it , int d , int sid , const string& ani , const string& damage_ani , const string& damage_suffix = "伤害" , HurtType type = HURT_DIRECT , bool passive_counter_attack = false , bool end_line = true , int* dealt = nullptr , bool blockable = true); // 统一受击入口；未标记为不可格挡的伤害可触发羿的格挡化力，dealt 可取得实际伤害。
 void passive_counter(int x , int it , bool end_line = true); // 被动反击：x 受伤后对来源 it 进行一次不可递归的普攻。
 void report_death(int source , int it , int sid); // 统一输出死亡日志、处理绑定眷属死亡，并在存在攻击来源时触发吞噬。
 void steal_skill(int x); // 张洋在累计三次串后偷取敌方待命/即时可释放技能，并夺取行动值。
@@ -1869,7 +1869,7 @@ int get_guardian(int target , int d)
 // 函数先由 get_guardian 决定是否存在唯一守护者。成功时原目标和守护者各承受 floor(d * 40%)，两份伤害均禁止再次进入守护，避免链式分摊。
 // 内部 apply_damage 负责每一份伤害的文本、receive_damage、死亡报告与受伤后被动；first_target 用于让反击文案只在首份伤害前出现。
 // end_line 由多段技能传入，确保地裂、雷击、守护和反击能够按既定位置连接或结束日志行。
-int take_guard_damage(int x , int it , int d , int sid , const string& ani , const string& damage_ani , const string& damage_suffix , HurtType type , bool passive_counter_attack , bool end_line)
+int take_guard_damage(int x , int it , int d , int sid , const string& ani , const string& damage_ani , const string& damage_suffix , HurtType type , bool passive_counter_attack , bool end_line , bool blockable)
 {
     int total_dealt = 0; // 同一次攻击可能由原目标与一名守护者分摊，累计两者实际承受的伤害后供斩击回血使用。
     auto apply_damage = [&](int target , int val , bool first_target , bool this_end_line)
@@ -1878,13 +1878,13 @@ int take_guard_damage(int x , int it , int d , int sid , const string& ani , con
         {
             add(p[x].no , p[target].no , sid , 0 , p[target].hp , 0 , ani , p[x].name , false);
             add(p[x].no , p[target].no , sid , 0 , p[target].hp , 10 , ani , "反击! " , false);
-            if(p[target].is_yi == false || (type != HURT_DIRECT && type != HURT_COUNTER))
+            if(p[target].is_yi == false || blockable == false)
             {
                 add(p[x].no , p[target].no , sid , 0 , p[target].hp , 0 , ani , p[target].name , false);
                 add(p[x].no , p[target].no , sid , 0 , p[target].hp , 0 , ani , "受到" , false);
             }
         }
-        else if(p[target].is_yi && (type == HURT_DIRECT || type == HURT_COUNTER))
+        else if(p[target].is_yi && blockable)
         {
             // 羿的格挡化力使用专属“羿 格挡”描述，不再叠加通用的“羿受到”前缀。
         }
@@ -1899,7 +1899,7 @@ int take_guard_damage(int x , int it , int d , int sid , const string& ani , con
             add(p[x].no , p[target].no , sid , 0 , p[target].hp , 10 , "yi_unbreakable" , p[target].name + "无法被破坏" , true);
             return;
         }
-        if(p[target].is_yi && (type == HURT_DIRECT || type == HURT_COUNTER))
+        if(p[target].is_yi && blockable)
         {
             yi_block_physical(x , target , actual , sid);
             return;
@@ -1939,7 +1939,7 @@ int take_guard_damage(int x , int it , int d , int sid , const string& ani , con
 // x 为来源、it 为目标、d 为已计算伤害；sid/ani/damage_ani/damage_suffix 只描述前端文本和动画，不参与数值计算。
 // type 会沿途传给 receive_damage/finish_hurt；passive_counter_attack 标记本次文本需要“反击!”前缀；end_line 控制多段事件最后一片是否换行。
 // 返回 0 表示被招架拦截，1 表示命中后目标存活，2 表示目标死亡。招架成功会清空招架层并立刻调用 counter_attack，随后同一技能的其他段只显示格挡。
-int take_hit(int x , int it , int d , int sid , const string& ani , const string& damage_ani , const string& damage_suffix , HurtType type , bool passive_counter_attack , bool end_line , int* dealt)
+int take_hit(int x , int it , int d , int sid , const string& ani , const string& damage_ani , const string& damage_suffix , HurtType type , bool passive_counter_attack , bool end_line , int* dealt , bool blockable)
 {
     if(dealt != nullptr) *dealt = 0;
     if(p[it].is_break_arrow)
@@ -1979,7 +1979,7 @@ int take_hit(int x , int it , int d , int sid , const string& ani , const string
         return 0;
     }
 
-    int actual_dealt = take_guard_damage(x , it , d , sid , ani , damage_ani , damage_suffix , type , passive_counter_attack , end_line);
+    int actual_dealt = take_guard_damage(x , it , d , sid , ani , damage_ani , damage_suffix , type , passive_counter_attack , end_line , blockable);
     if(dealt != nullptr) *dealt = actual_dealt;
     return p[it].alive ? 1 : 2;
 }
@@ -2061,7 +2061,7 @@ void galahad_laser_attack(int x)
         add(p[x].no, p[it].no, 35, 0, p[it].hp, 7, "galahad_laser", "激光枪射击", false);
         add(p[x].no, p[it].no, 35, 0, p[it].hp, 0, "galahad_laser", p[it].name + "，", false);
         int dealt = 0;
-        int res = take_hit(x, it, d, 35, "galahad_laser", "galahad_laser_damage", "伤害", HURT_DIRECT, false, last, &dealt);
+        int res = take_hit(x, it, d, 35, "galahad_laser", "galahad_laser_damage", "伤害", HURT_DIRECT, false, last, &dealt, false);
         clear_parry_action();
         if(res == 1 && dealt > 0)
         {
@@ -2437,7 +2437,7 @@ void thunder(int x)
         int d = magic_damage(x , it , mul); // 与 0 取最大值的法术基础伤害，幻魔受常驻易损影响。
         d = reduce_outgoing_damage(x , d);
 
-        int res = take_hit(x , it , d , 2 , "thunder" , i == cnt ? "thunder_damage_last" : "thunder_damage" , "伤害" , HURT_MAGIC);
+        int res = take_hit(x , it , d , 2 , "thunder" , i == cnt ? "thunder_damage_last" : "thunder_damage" , "伤害" , HURT_MAGIC , false , true , nullptr , false);
         if(p[x].alive == false || res == 2)
         {
             clear_parry_action();
@@ -2480,7 +2480,7 @@ void earthquake(int x)
         int d = magic_damage(x , it , 80); // 地裂术基础伤害为魔攻的 80%，幻魔受常驻易损影响。
         d = reduce_outgoing_damage(x , d);
 
-        take_hit(x , it , d , 6 , "earthquake" , "earthquake_damage" , "伤害" , HURT_MAGIC);
+        take_hit(x , it , d , 6 , "earthquake" , "earthquake_damage" , "伤害" , HURT_MAGIC , false , true , nullptr , false);
         if(p[x].alive == false)
         {
             clear_parry_action();
@@ -2946,7 +2946,7 @@ void on_yi_special_hit(int source , int target , int sid , HurtType type)
     else if(result == 1) finish_hurt(source , target , HURT_INTERNAL);
 }
 
-// 羿以格挡化力完全免疫物理命中；20% 将 150% 伤害记入内伤，否则内伤降低 20%，并获得一层气。
+// 羿以格挡化力完全免疫所有未标记为不可格挡的命中；20% 将 150% 伤害记入内伤，否则内伤降低 20%，并获得一层气。
 void yi_block_physical(int source , int target , int damage , int sid)
 {
     if(damage <= 0) return;
@@ -3057,8 +3057,7 @@ void tri_yuan_sword(int x)
         int fluctuation = 800 + rnd() % 401;
         damage = max(1LL , (damage * fluctuation + 500) / 1000);
         damage = reduce_outgoing_damage(x , damage);
-        add(p[x].no , p[target].no , 44 , 0 , p[target].hp , 0 , "yi_tri_sword" , to_string(i + 1) + "段，" , false);
-        int result = take_hit(x , target , damage , 44 , "yi_tri_sword" , "yi_tri_damage" , "伤害" , HURT_DIRECT , false , i == 2);
+        int result = take_hit(x , target , damage , 44 , "yi_tri_sword" , "yi_tri_damage" , i < 2 ? "伤害，" : "伤害" , HURT_DIRECT , false , i == 2);
         clear_parry_action();
         if(result != 1) break;
     }

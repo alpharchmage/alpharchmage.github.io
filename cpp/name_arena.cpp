@@ -1878,8 +1878,15 @@ int take_guard_damage(int x , int it , int d , int sid , const string& ani , con
         {
             add(p[x].no , p[target].no , sid , 0 , p[target].hp , 0 , ani , p[x].name , false);
             add(p[x].no , p[target].no , sid , 0 , p[target].hp , 10 , ani , "反击! " , false);
-            add(p[x].no , p[target].no , sid , 0 , p[target].hp , 0 , ani , p[target].name , false);
-            add(p[x].no , p[target].no , sid , 0 , p[target].hp , 0 , ani , "受到" , false);
+            if(p[target].is_yi == false || (type != HURT_DIRECT && type != HURT_COUNTER))
+            {
+                add(p[x].no , p[target].no , sid , 0 , p[target].hp , 0 , ani , p[target].name , false);
+                add(p[x].no , p[target].no , sid , 0 , p[target].hp , 0 , ani , "受到" , false);
+            }
+        }
+        else if(p[target].is_yi && (type == HURT_DIRECT || type == HURT_COUNTER))
+        {
+            // 羿的格挡化力使用专属“羿 格挡”描述，不再叠加通用的“羿受到”前缀。
         }
         else
         {
@@ -2965,7 +2972,6 @@ void fire_yi_arrow(int x , int arrow_kind , bool stolen)
         int target = get_target(x);
         if(target == 0) return;
         add(p[x].no , p[target].no , 41 , 0 , p[target].hp , 0 , "yi_arrow" , p[x].name + "射出穿云神箭，" , false);
-        add(p[x].no , p[target].no , 41 , 0 , p[target].hp , 2 , "yi_arrow" , p[target].name , false);
         int damage = magic_damage(x , target , 200);
         damage = reduce_outgoing_damage(x , damage);
         int result = take_hit(x , target , damage , 41 , "yi_arrow" , "yi_arrow_damage" , "伤害" , HURT_MAGIC);
@@ -3071,7 +3077,6 @@ void qizhu(int x , int target , int qi)
     damage = reduce_outgoing_damage(x , damage);
     p[x].yi_internal_injury = p[x].yi_internal_injury * 75 / 100;
     add(p[x].no , p[target].no , 45 , 0 , p[target].hp , 2 , "yi_qizhu" , p[x].name + "注气，" , false);
-    add(p[x].no , p[target].no , 45 , 0 , p[target].hp , 2 , "yi_qizhu" , p[target].name + "受到" , false);
     take_hit(x , target , damage , 45 , "yi_qizhu" , "yi_qizhu_damage" , "伤害" , HURT_MAGIC);
     clear_parry_action();
     add(p[x].no , p[x].no , 45 , 0 , p[x].hp , 0 , "status_sync" , "" , true);

@@ -1202,7 +1202,7 @@ void finish_hurt(int x , int it , HurtType type , bool end_line = true)
         p[it].spd_up_time += 5;
         add(p[it].no , p[it].no , 20 , 0 , p[it].hp , 0 , "last_stand" , p[it].name + "发动" , false);
         add(p[it].no , p[it].no , 20 , 0 , p[it].hp , 10 , "last_stand" , "垂死挣扎" , false);
-        add(p[it].no , p[it].no , 20 , 0 , p[it].hp , 0 , "last_stand" , "，属性大幅上升!!!" , true);
+        add(p[it].no , p[it].no , 20 , 0 , p[it].hp , 0 , "last_stand" , "，属性大幅上升!!!，" , end_line);
     }
 
     if(p[it].alive == false || p[x].alive == false || p[it].has_counter == false) return;

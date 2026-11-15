@@ -138,7 +138,7 @@ const UnitReadout = memo(function UnitReadout({ player, damageVisuals, healVisua
           {isManaTarget && manaLossWidthPercent > 0 && <span className={`mana-loss ${manaVisual.phase === "erasing" ? "is-erasing" : ""}`} style={{ left: `${manaLossEndPercent}%`, width: `${manaLossWidthPercent}%` }} />}
         </div>}
         {compactMode === false && player.isYi && <div className="yi-resources" aria-label="羿的特殊资源"><span className="yi-resource qi-resource"><b>气 {player.qi ?? 0}/{player.maxQi ?? 6}</b></span><span className="yi-resource"><b>苍砂 {player.cangsha ?? 0}/{player.maxCangsha ?? 6}</b></span><span className="yi-resource yi-injury">内伤 {player.internalInjury ?? 0}</span><span className="yi-resource yi-medicine">药斗 {player.medicineUses ?? 0}</span></div>}
-        {compactMode === false && player.isHornet && <div className="yi-resources" aria-label="大黄蜂资源"><span className="yi-resource"><b>丝 {player.hornetSilk ?? 0}/{player.maxHornetSilk ?? 18}</b></span><span className="yi-resource"><b>无敌帧 {player.hornetInvulnActions ?? 0}/2</b></span>{player.hornetThreadPending && <span className="yi-resource yi-medicine">缚丝待愈</span>}</div>}
+        {compactMode === false && (player.isHornet || (player.hornetSilk ?? 0) > 0) && <div className="yi-resources" aria-label="大黄蜂资源"><span className="yi-resource"><b>丝 {player.hornetSilk ?? 0}/{player.isHornet ? (player.maxHornetSilk ?? 18) : 18}</b></span><span className="yi-resource"><b>无敌帧 {player.hornetInvulnActions ?? 0}/2</b></span>{player.hornetThreadPending && <span className="yi-resource yi-medicine">缚丝待愈</span>}</div>}
       </div>
       <div className="hp-values"><span>HP</span><span>{player.isUnbreakable ? "？？？" : `${player.hp}/${player.maxHp}`}</span></div>
     </article>

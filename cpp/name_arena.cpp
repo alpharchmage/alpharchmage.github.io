@@ -3001,7 +3001,7 @@ void fire_yi_arrow(int x , int arrow_kind , bool stolen)
     {
         if(living_break_arrow_count(x) >= 2)
         {
-            add(p[x].no , p[x].no , 42 , 0 , p[x].hp , 6 , "yi_break_arrow" , p[x].name + "已有两支破雷神箭，无法再召唤" , true);
+            add(p[x].no , p[x].no , 42 , 0 , p[x].hp , 6 , "yi_break_arrow" , p[x].name + "的苍弓抽中破雷神箭，但已有两支，未能召唤" , true);
             return;
         }
         n++;
@@ -3036,7 +3036,7 @@ void fire_yi_arrow(int x , int arrow_kind , bool stolen)
     if(arrow_kind == 2)
     {
         p[x].yi_seeking += 10;
-        add(p[x].no , p[x].no , 43 , 10 , p[x].hp , 5 , "yi_seeking" , p[x].name + "获得10层寻敌" , true);
+        add(p[x].no , p[x].no , 43 , 10 , p[x].hp , 5 , "yi_seeking" , p[x].name + "射出寻影神箭，获得10层寻敌" , true);
     }
     (void)stolen;
 }
@@ -3186,10 +3186,10 @@ void break_arrow_electric(int x)
     }
 }
 
-// 寻敌每层在羿完成一次行动后消耗一层，并追加一次 20% 魔攻的寻影箭追击。
+// 持有寻敌层数者完成一次行动后消耗一层，并追加一次 20% 魔攻的寻影箭追击。
 void trigger_yi_seek(int x)
 {
-    if(p[x].is_yi == false || p[x].yi_seeking <= 0) return;
+    if(p[x].yi_seeking <= 0) return;
     p[x].yi_seeking--;
     add(p[x].no , p[x].no , 43 , 0 , p[x].hp , 0 , "status_sync" , "" , false);
     int target = get_target(x);
@@ -3205,7 +3205,7 @@ void trigger_yi_seek(int x)
     clear_parry_action();
 }
 
-// 药斗权重在羿带任一负面状态时极高；否则贴符优先于三元剑，苍弓保持较低权重。
+// 羿带负面状态时提高药斗权重，但仍与贴符、三元剑共同竞争；无负面状态时药斗权重较低。
 bool yi_has_negative_status(int x)
 {
     return p[x].freeze > 0 || p[x].burn_time > 0 || p[x].poison_time > 0 || p[x].def_down_time > 0 || p[x].damage_down_time > 0 || p[x].spd_down_time > 0 || p[x].square_time > 0 || p[x].target_lock_time > 0 || p[x].lament_time > 0;
@@ -3215,7 +3215,7 @@ void use_yi(int x)
 {
     if(p[x].yi_infusion_pending == false)
     {
-        int medicine_weight = p[x].yi_medicine_uses > 0 ? (yi_has_negative_status(x) ? 10000 : p[x].hp * 100 < get_maxhp(x) * 50 ? 3 : 1) : 0;
+        int medicine_weight = p[x].yi_medicine_uses > 0 ? (yi_has_negative_status(x) ? 80 : p[x].hp * 100 < get_maxhp(x) * 50 ? 3 : 1) : 0;
         int tie_weight = p[x].yi_qi >= 3 ? 60 : 0;
         int sword_weight = 40;
         int bow_weight = p[x].yi_cangsha > 0 ? 3 : 0;
@@ -3427,7 +3427,7 @@ int special_weight(int x , int i)
     if(p[x].is_yi && p[x].skill[i] == tie_fu) return 60;
     if(p[x].is_yi && p[x].skill[i] == tri_yuan_sword) return 40;
     if(p[x].is_yi && p[x].skill[i] == cang_bow) return 3;
-    if(p[x].is_yi && p[x].skill[i] == yao_dou) return yi_has_negative_status(x) ? 10000 : 1;
+    if(p[x].is_yi && p[x].skill[i] == yao_dou) return yi_has_negative_status(x) ? 80 : 1;
     if(p[x].skill[i] == heal_magic && p[x].hp * 100 < get_maxhp(x) * 40 && get_iq(x) > 100)
     {
         return p[x].w[i] + (get_iq(x) - 100) * 1000000;
@@ -3613,7 +3613,7 @@ void use_skill(int x)
         basic_attack(x);
         p[x].lament_time--;
         add(p[x].no , p[x].no , 35 , 0 , p[x].hp , 0 , "status_sync" , "", true);
-        if(p[x].is_yi) trigger_yi_seek(x);
+        if(p[x].yi_seeking > 0) trigger_yi_seek(x);
         return;
     }
 
@@ -3752,6 +3752,9 @@ void use_skill(int x)
         }
 
         f(x);
+
+        // 寻影神箭可由羿或偷取苍弓的角色持有；任何角色完成行动后都结算一层追击。
+        if(p[x].yi_seeking > 0) trigger_yi_seek(x);
 
         // 战斗循环通常保留本次行动值的正余量，使快速行动的 +20000 必然跨过严格大于 20000 的阈值。
         // 这里仅为张洋偷取路径补齐极端零余量，保证快速行动执行后至少再获得一次行动，且不改变正常角色的精确分配规则。

@@ -118,7 +118,7 @@ const UnitReadout = memo(function UnitReadout({ player, damageVisuals, healVisua
     <article className={`unit-readout ${compactMode ? "is-compact" : ""} ${player.isFamiliar ? "is-familiar" : ""} ${player.alive === false ? "is-defeated" : ""} ${player.isRevived ? "is-revived" : ""} ${isDamageTarget ? "is-taking-damage" : ""} ${isHealTarget ? "is-being-healed" : ""} ${isManaTarget ? "is-using-mana" : ""} ${isPoisoned ? "is-poisoned" : ""}`}>
       <strong title={`${player.name} #队伍${player.teamId}`}><span className="unit-name">{player.name}</span>{compactMode === false && statuses.length > 0 && <span className="unit-statuses" aria-label={`${player.name} 当前状态`}>{statuses.map((status) => <span className={`unit-status unit-status-${status.key}`} title={status.title} key={status.key}>{status.icon ? <img src={status.icon} alt="" aria-hidden="true" /> : <i aria-hidden="true">符</i>}<b>{status.key === "magic-vuln" ? `${status.strength}/∞` : `${status.strength}/${status.layers}`}</b></span>)}</span>}<em>#队伍{player.teamId}</em></strong>
       <div className="meter-stack">
-        <div className={`hp-meter ${isTargetLocked ? "is-target-locked" : ""}`} aria-label={`${player.name} 生命 ${player.hp}/${player.maxHp}`}>
+        <div className={`hp-meter ${isTargetLocked ? "is-target-locked" : ""}`} aria-label={player.isUnbreakable ? `${player.name} 生命值未知` : `${player.name} 生命 ${player.hp}/${player.maxHp}`}>
           <span className="hp-fill" style={{ transform: `scaleX(${hpPercent / 100})`, "--hp-animation-duration": `${hpTransitionMs}ms`, "--revived-hp-scale": hpPercent / 100 } as CSSProperties} />
           {playerDamageVisuals.map((visual) => {
             const lossStartPercent = Math.max(0, Math.min(100, (visual.beforeHp / player.maxHp) * 100));
@@ -133,13 +133,13 @@ const UnitReadout = memo(function UnitReadout({ player, damageVisuals, healVisua
             return healWidthPercent > 0 ? <span className={`hp-heal ${visual.phase === "erasing" ? "is-erasing" : ""}`} key={visual.animationId} style={{ left: `${healStartPercent}%`, width: `${healWidthPercent}%`, "--hp-animation-duration": `${visual.transitionMs}ms` } as CSSProperties} /> : null;
           })}
         </div>
-        {compactMode === false && player.isYi && <div className="yi-resources" aria-label="羿的特殊资源"><span className="yi-resource qi-resource"><b>气 {player.qi ?? 0}/{player.maxQi ?? 6}</b></span><span className="yi-resource"><b>苍砂 {player.cangsha ?? 0}/{player.maxCangsha ?? 6}</b></span><span className="yi-resource yi-injury">内伤 {player.internalInjury ?? 0}</span><span className="yi-resource yi-medicine">药斗 {player.medicineUses ?? 0}</span></div>}
         {compactMode === false && <div className="mana-meter" aria-label={`${player.name} 魔力 ${player.mana}/${player.maxMana}`}>
           <span className="mana-fill" style={{ transform: `scaleX(${manaPercent / 100})` }} />
           {isManaTarget && manaLossWidthPercent > 0 && <span className={`mana-loss ${manaVisual.phase === "erasing" ? "is-erasing" : ""}`} style={{ left: `${manaLossEndPercent}%`, width: `${manaLossWidthPercent}%` }} />}
         </div>}
+        {compactMode === false && player.isYi && <div className="yi-resources" aria-label="羿的特殊资源"><span className="yi-resource qi-resource"><b>气 {player.qi ?? 0}/{player.maxQi ?? 6}</b></span><span className="yi-resource"><b>苍砂 {player.cangsha ?? 0}/{player.maxCangsha ?? 6}</b></span><span className="yi-resource yi-injury">内伤 {player.internalInjury ?? 0}</span><span className="yi-resource yi-medicine">药斗 {player.medicineUses ?? 0}</span></div>}
       </div>
-      <div className="hp-values"><span>HP</span><span>{player.hp}/{player.maxHp}</span></div>
+      <div className="hp-values"><span>HP</span><span>{player.isUnbreakable ? "？？？" : `${player.hp}/${player.maxHp}`}</span></div>
     </article>
   );
 });
@@ -154,7 +154,7 @@ function AttributeStrip({ players }: { players: CppPlayerSnapshot[] }) {
         {players.map((player) => namesOnly ? (
           <p key={player.id}>{player.name}</p>
         ) : (
-          <p key={player.id}><strong>{player.name}</strong><span>命 {player.maxHp}　攻 {player.physicalAttack}　防 {player.physicalDefense}　速 {player.speed}　魔攻 {player.magicAttack}　魔防 {player.magicDefense}　智 {player.wisdom}　回魔 {player.manaRecovery}</span></p>
+          <p key={player.id}><strong>{player.name}</strong><span>命 {player.isUnbreakable ? "？？？" : player.maxHp}　攻 {player.physicalAttack}　防 {player.physicalDefense}　速 {player.speed}　魔攻 {player.magicAttack}　魔防 {player.magicDefense}　智 {player.wisdom}　回魔 {player.manaRecovery}</span></p>
         ))}
       </div>
     </section>

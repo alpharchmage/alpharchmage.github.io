@@ -911,6 +911,11 @@ int alive_team()
     return ans;
 }
 
+// 破雷神箭不参与敌方选目标；其他角色不能将其选作攻击目标。
+bool is_attackable_enemy(int x , int it)
+{
+    return it > 0 && it <= n && p[it].alive && p[it].id != p[x].id && p[it].is_break_arrow == false;
+}
 // 不考虑目标锁定的原始随机敌方选择；world.search 首次施加锁定时使用此函数，避免旧锁定改变本次搜索对象。
 int get_random_enemy_target(int x)
 {
@@ -918,7 +923,7 @@ int get_random_enemy_target(int x)
 
     for(int it = 1;it <= n;++ it)
     {
-        if(p[it].alive && p[it].id != p[x].id) sum++;
+        if(is_attackable_enemy(x , it)) sum++;
     }
 
     if(sum == 0) return 0;
@@ -927,7 +932,7 @@ int get_random_enemy_target(int x)
 
     for(int it = 1;it <= n;++ it)
     {
-        if(p[it].alive && p[it].id != p[x].id)
+        if(is_attackable_enemy(x , it))
         {
             k--;
             if(k == 0) return it;
@@ -943,7 +948,7 @@ int get_locked_target(int x)
     int locked = 0;
     for(int it = 1; it <= n; ++it)
     {
-        if(p[it].alive == false || p[it].id == p[x].id || p[it].target_lock_time <= 0 || p[it].target_lock_team != p[x].id) continue;
+        if(is_attackable_enemy(x , it) == false || p[it].target_lock_time <= 0 || p[it].target_lock_team != p[x].id) continue;
         if(locked == 0 || p[it].target_lock_time > p[locked].target_lock_time || (p[it].target_lock_time == p[locked].target_lock_time && it < locked)) locked = it;
     }
     return locked;
@@ -973,13 +978,13 @@ void consume_target_lock(int x, int it)
 int get_lament_target(int x)
 {
     int sum = 0;
-    for(int it = 1;it <= n;++ it) if(p[it].alive) sum++;
+    for(int it = 1;it <= n;++ it) if(p[it].alive && p[it].is_break_arrow == false) sum++;
     if(sum == 0) return 0;
 
     int k = rnd_id(sum);
     for(int it = 1;it <= n;++ it)
     {
-        if(p[it].alive == false) continue;
+        if(p[it].alive == false || p[it].is_break_arrow) continue;
         if(--k == 0) return it;
     }
     return 0;
@@ -996,7 +1001,7 @@ int get_plague_target(int x)
 
     for(int it = 1;it <= n;++ it)
     {
-        if(p[it].alive == false || p[it].id == p[x].id) continue;
+        if(is_attackable_enemy(x , it) == false) continue;
         if(ans == 0 || p[it].hp > p[ans].hp) ans = it;
     }
 
@@ -1013,7 +1018,7 @@ int get_life_wheel_target(int x)
 
     for(int it = 1;it <= n;++ it)
     {
-        if(p[it].alive == false || p[it].id == p[x].id) continue;
+        if(is_attackable_enemy(x , it) == false) continue;
         if(ans == 0 || p[it].hp > p[ans].hp) ans = it;
     }
 
@@ -2041,7 +2046,7 @@ void galahad_laser_attack(int x)
     vector<int> targets;
     for(int i = 1; i <= n; ++i)
     {
-        if(p[i].alive && p[i].id != p[x].id) targets.push_back(i);
+        if(is_attackable_enemy(x , i)) targets.push_back(i);
     }
     if(targets.empty()) return;
 
@@ -2225,7 +2230,7 @@ void magic_square(int x)
 {
     vector<int> target;
 
-    for(int it = 1;it <= n;++ it) if(p[it].alive && p[it].id != p[x].id) target.push_back(it);
+    for(int it = 1;it <= n;++ it) if(is_attackable_enemy(x , it)) target.push_back(it);
     for(int i = (int)target.size();i >= 2;-- i) swap(target[i - 1] , target[rnd_id(i) - 1]);
     int cnt = min(3LL , (int)target.size());
     if(cnt == 0) return;
@@ -2457,7 +2462,7 @@ void earthquake(int x)
 
     for(int it = 1;it <= n;++ it)
     {
-        if(p[it].alive && p[it].id != p[x].id) target.push_back(it);
+        if(is_attackable_enemy(x , it)) target.push_back(it);
     }
 
     if(target.empty()) return;
@@ -2661,20 +2666,20 @@ void world_execute(int x)
         int lowest_hp = 0;
         for(int it = 1;it <= n;++ it)
         {
-            if(p[it].alive == false) continue;
+            if(p[it].alive == false || p[it].is_break_arrow) continue;
             alive_count++;
             if(lowest_hp == 0 || p[it].hp < lowest_hp) lowest_hp = p[it].hp;
         }
         if(alive_count <= 1 || lowest_hp <= 0) return;
 
         vector<int> targets;
-        for(int it = 1;it <= n;++ it) if(p[it].alive) targets.push_back(it);
+        for(int it = 1;it <= n;++ it) if(p[it].alive && p[it].is_break_arrow == false) targets.push_back(it);
         for(int it : targets)
         {
             int remaining = 0;
-            for(int check = 1;check <= n;++ check) if(p[check].alive) remaining++;
+            for(int check = 1;check <= n;++ check) if(p[check].alive && p[check].is_break_arrow == false) remaining++;
             if(remaining <= 1) return;
-            if(p[it].alive == false) continue;
+            if(p[it].alive == false || p[it].is_break_arrow) continue;
 
             add(p[x].no , p[it].no , 37 , 0 , p[it].hp , 0 , "world_execute" , "execute", true);
             int result = receive_damage(it , lowest_hp , HURT_LIFE_WHEEL);
@@ -2964,6 +2969,13 @@ void yi_block_physical(int source , int target , int damage , int sid)
     add(source , target , sid , 1 , p[target].hp , 5 , "yi_block" , "，获得一层气" , true);
 }
 
+// 每名羿最多保留两支存活的破雷神箭眷属。
+int living_break_arrow_count(int owner)
+{
+    int count = 0;
+    for(int it = 1; it <= n; ++it) if(p[it].alive && p[it].is_break_arrow && p[it].owner == owner) count++;
+    return count;
+}
 // 穿云神箭、破雷神箭、寻影神箭分别以 0、1、2 表示。
 void fire_yi_arrow(int x , int arrow_kind , bool stolen)
 {
@@ -2974,9 +2986,10 @@ void fire_yi_arrow(int x , int arrow_kind , bool stolen)
         add(p[x].no , p[target].no , 41 , 0 , p[target].hp , 0 , "yi_arrow" , p[x].name + "射出穿云神箭，" , false);
         int damage = magic_damage(x , target , 200);
         damage = reduce_outgoing_damage(x , damage);
-        int result = take_hit(x , target , damage , 41 , "yi_arrow" , "yi_arrow_damage" , "伤害" , HURT_MAGIC);
+        int dealt = 0;
+        int result = take_hit(x , target , damage , 41 , "yi_arrow" , "yi_arrow_damage" , "伤害" , HURT_MAGIC , false , true , &dealt);
         clear_parry_action();
-        if(result == 1)
+        if(result == 1 && dealt > 0)
         {
             p[target].act = -200000;
             add(p[x].no , p[target].no , 41 , 0 , p[target].hp , 0 , "yi_arrow_stun" , p[target].name + " " , false);
@@ -2986,6 +2999,11 @@ void fire_yi_arrow(int x , int arrow_kind , bool stolen)
     }
     if(arrow_kind == 1)
     {
+        if(living_break_arrow_count(x) >= 2)
+        {
+            add(p[x].no , p[x].no , 42 , 0 , p[x].hp , 6 , "yi_break_arrow" , p[x].name + "已有两支破雷神箭，无法再召唤" , true);
+            return;
+        }
         n++;
         p[n] = Player();
         p[n].skill.fill(nullptr);
@@ -3343,7 +3361,7 @@ void steal_skill(int x)
     vector<void (*)(int)> later_parry;
     void (*first_parry)(int) = nullptr;
 
-    for(int it = 1;it <= n;++ it) if(p[it].alive && p[it].id != p[x].id) target.push_back(it);
+    for(int it = 1;it <= n;++ it) if(is_attackable_enemy(x , it)) target.push_back(it);
     int cnt = target.empty() ? 0 : 3;
 
     for(int i = 0;i < cnt;++ i)
@@ -3584,6 +3602,11 @@ void end_turn(int x)
 // 让玩家 x 执行一次行动：优先执行 tmp 队列中的束缚技能，否则先按智慧判定特殊分支，再统一加权抽取法术或非法术。
 void use_skill(int x)
 {
+    if(p[x].is_break_arrow)
+    {
+        break_arrow_electric(x);
+        return;
+    }
     // 哀悼会把本次行动完全替换为一次无差别普通攻击；每完成一次该行动后静默消耗一层。
     if(p[x].lament_time > 0)
     {

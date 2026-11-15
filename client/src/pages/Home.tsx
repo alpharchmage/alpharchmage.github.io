@@ -294,7 +294,7 @@ export function BattlePlayback({ battle, onRestart, compactMode = false, watchMo
           magicAttack: statusCommand.playerMagicAttack ?? player.magicAttack,
           magicDefense: statusCommand.playerMagicDefense ?? player.magicDefense,
           speed: statusCommand.playerSpeed ?? player.speed,
-          hp: statusCommand.frontEndAnimation === "familiar_transform" || statusCommand.frontEndAnimation === "status_sync" ? statusCommand.valueAfter : player.hp,
+          hp: statusCommand.frontEndAnimation === "familiar_transform" ? statusCommand.valueAfter : player.hp,
           freezeStrength: statusCommand.freezeStrength ?? player.freezeStrength,
           freezeLayers: statusCommand.freezeLayers ?? player.freezeLayers,
           ironwallStrength: statusCommand.ironwallStrength ?? player.ironwallStrength,

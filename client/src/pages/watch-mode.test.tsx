@@ -87,6 +87,19 @@ describe("watch mode playback", () => {
     expect(betaUnit()?.classList.contains("is-defeated")).toBe(true);
   });
 
+  it("does not treat a turn-start status_sync placeholder as zero hp", () => {
+    const statusSyncBattle: CppBattleSimulationResponse = {
+      ...battle,
+      commands: [
+        { ...command("", "status_sync", 0, 0, 0, true), targetPlayerId: 1, sourcePlayerId: 1, alive: true, playerMaxHp: 100 },
+        command("战斗结束", "battle_end", 1, 0, 0, true),
+      ],
+    };
+    const { container } = render(<BattlePlayback battle={statusSyncBattle} onRestart={() => {}} />);
+
+    expect(container.querySelector('.hp-meter[aria-label="羿 生命 100/100"]')).not.toBeNull();
+  });
+
   it("uses a clear stolen-skill announcement instead of the misleading chain-cast wording", () => {
     const stolenSkillBattle: CppBattleSimulationResponse = {
       ...battle,

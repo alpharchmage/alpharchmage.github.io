@@ -138,6 +138,7 @@ const UnitReadout = memo(function UnitReadout({ player, damageVisuals, healVisua
           {isManaTarget && manaLossWidthPercent > 0 && <span className={`mana-loss ${manaVisual.phase === "erasing" ? "is-erasing" : ""}`} style={{ left: `${manaLossEndPercent}%`, width: `${manaLossWidthPercent}%` }} />}
         </div>}
         {compactMode === false && player.isYi && <div className="yi-resources" aria-label="羿的特殊资源"><span className="yi-resource qi-resource"><b>气 {player.qi ?? 0}/{player.maxQi ?? 6}</b></span><span className="yi-resource"><b>苍砂 {player.cangsha ?? 0}/{player.maxCangsha ?? 6}</b></span><span className="yi-resource yi-injury">内伤 {player.internalInjury ?? 0}</span><span className="yi-resource yi-medicine">药斗 {player.medicineUses ?? 0}</span></div>}
+        {compactMode === false && player.isHornet && <div className="yi-resources" aria-label="大黄蜂资源"><span className="yi-resource"><b>丝 {player.hornetSilk ?? 0}/{player.maxHornetSilk ?? 18}</b></span><span className="yi-resource"><b>无敌帧 {player.hornetInvulnActions ?? 0}/2</b></span>{player.hornetThreadPending && <span className="yi-resource yi-medicine">缚丝待愈</span>}</div>}
       </div>
       <div className="hp-values"><span>HP</span><span>{player.isUnbreakable ? "？？？" : `${player.hp}/${player.maxHp}`}</span></div>
     </article>
@@ -278,7 +279,7 @@ export function BattlePlayback({ battle, onRestart, compactMode = false, watchMo
     const segmentCommands = isWatchMode ? currentEvent.slice(segmentStart, segmentEnd + 1) : currentEvent;
     const statusCommands = new Map<number, CppRenderCommand>();
     for (const command of segmentCommands) {
-      const hasStatusSnapshot = command.frontEndAnimation === "status_sync" || [command.freezeStrength, command.freezeLayers, command.ironwallStrength, command.ironwallLayers, command.defenseDownStrength, command.defenseDownLayers, command.damageDownStrength, command.damageDownLayers, command.squareStrength, command.squareLayers, command.speedUpStrength, command.speedUpLayers, command.speedDownStrength, command.speedDownLayers, command.burnStrength, command.burnLayers, command.poisonStrength, command.poisonLayers, command.parryLayers, command.lamentLayers, command.targetLockLayers, command.qi, command.internalInjury, command.seekingLayers, command.talismanLayers, command.cangsha, command.medicineUses, command.playerName, command.playerMaxHp, command.playerPhysicalAttack, command.playerPhysicalDefense, command.playerMagicAttack, command.playerMagicDefense, command.playerSpeed].some((value) => value !== undefined);
+      const hasStatusSnapshot = command.frontEndAnimation === "status_sync" || [command.freezeStrength, command.freezeLayers, command.ironwallStrength, command.ironwallLayers, command.defenseDownStrength, command.defenseDownLayers, command.damageDownStrength, command.damageDownLayers, command.squareStrength, command.squareLayers, command.speedUpStrength, command.speedUpLayers, command.speedDownStrength, command.speedDownLayers, command.burnStrength, command.burnLayers, command.poisonStrength, command.poisonLayers, command.parryLayers, command.lamentLayers, command.targetLockLayers, command.qi, command.internalInjury, command.seekingLayers, command.talismanLayers, command.cangsha, command.medicineUses, command.hornetSilk, command.hornetInvulnActions, command.hornetThreadPending, command.playerName, command.playerMaxHp, command.playerPhysicalAttack, command.playerPhysicalDefense, command.playerMagicAttack, command.playerMagicDefense, command.playerSpeed].some((value) => value !== undefined);
       if (command.targetPlayerId !== 0 && hasStatusSnapshot) statusCommands.set(command.targetPlayerId, command);
     }
     if (statusCommands.size > 0) {
@@ -322,6 +323,9 @@ export function BattlePlayback({ battle, onRestart, compactMode = false, watchMo
           talismanLayers: statusCommand.talismanLayers ?? player.talismanLayers,
           cangsha: statusCommand.cangsha ?? player.cangsha,
           medicineUses: statusCommand.medicineUses ?? player.medicineUses,
+          hornetSilk: statusCommand.hornetSilk ?? player.hornetSilk,
+          hornetInvulnActions: statusCommand.hornetInvulnActions ?? player.hornetInvulnActions,
+          hornetThreadPending: statusCommand.hornetThreadPending ?? player.hornetThreadPending,
           alive: statusCommand.alive ?? player.alive,
           isRevived: statusCommand.frontEndAnimation === "revive_heal" || statusCommand.frontEndAnimation === "familiar_transform" ? true : statusCommand.alive === false ? false : player.isRevived,
         };

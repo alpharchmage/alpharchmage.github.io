@@ -13,6 +13,11 @@ export type CppPlayerSnapshot = {
   inputIndex: number;
   isFamiliar?: boolean;
   isYi?: boolean;
+  isHornet?: boolean;
+  hornetSilk?: number;
+  maxHornetSilk?: number;
+  hornetInvulnActions?: number;
+  hornetThreadPending?: boolean;
   isUnbreakable?: boolean;
   qi?: number;
   maxQi?: number;
@@ -78,6 +83,9 @@ export type CppRenderCommand = {
   talismanLayers?: number;
   cangsha?: number;
   medicineUses?: number;
+  hornetSilk?: number;
+  hornetInvulnActions?: number;
+  hornetThreadPending?: boolean;
   freezeStrength?: number;
   freezeLayers?: number;
   ironwallStrength?: number;

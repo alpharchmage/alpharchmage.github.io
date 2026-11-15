@@ -64,4 +64,35 @@ describe("watch mode playback", () => {
     act(() => { vi.advanceTimersByTime(1100); });
     expect(streamText()).toContain("战斗结束");
   });
+
+  it("renders food hp loss and applies every heal in the same event", () => {
+    const gamma = { ...makePlayer(3, "gamma"), hp: 40 };
+    const foodBattle: CppBattleSimulationResponse = {
+      ...battle,
+      initialPlayers: [makePlayer(1, "mili"), makePlayer(2, "beta"), gamma],
+      finalPlayers: [makePlayer(1, "mili"), makePlayer(2, "beta"), gamma],
+      commands: [
+        command("beta生命降至30%", "food_damage", 14, 70, 30, true),
+        { ...command("beta恢复20", "food_heal", 4, 20, 50, false), targetPlayerId: 2 },
+        { ...command("gamma恢复20", "heal", 4, 20, 60, true), targetPlayerId: 3 },
+        command("战斗结束", "battle_end", 1, 0, 0, true),
+      ],
+    };
+    const { container } = render(<BattlePlayback battle={foodBattle} onRestart={() => {}} />);
+
+    expect(container.querySelector('.hp-meter[aria-label="beta 生命 30/100"]')).not.toBeNull();
+    const lossMark = container.querySelector(".hp-loss");
+    expect(lossMark).not.toBeNull();
+    expect(lossMark?.classList.contains("is-erasing")).toBe(false);
+
+    act(() => { vi.advanceTimersByTime(17); });
+    expect(lossMark?.classList.contains("is-erasing")).toBe(false);
+    act(() => { vi.advanceTimersByTime(1); });
+    expect(lossMark?.classList.contains("is-erasing")).toBe(true);
+
+    act(() => { vi.advanceTimersByTime(30); });
+    expect(container.querySelector('.hp-meter[aria-label="beta 生命 50/100"]')).not.toBeNull();
+    expect(container.querySelector('.hp-meter[aria-label="gamma 生命 60/100"]')).not.toBeNull();
+    expect(container.querySelectorAll(".hp-heal")).toHaveLength(2);
+  });
 });

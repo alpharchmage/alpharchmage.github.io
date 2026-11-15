@@ -331,9 +331,17 @@ export function BattlePlayback({ battle, onRestart, compactMode = false, watchMo
       setDisplayPlayers(nextPlayers);
     }
 
-    const damageCommands = segmentCommands.filter((command) => (command.renderTone === 3 || command.frontEndAnimation === "galahad_laser_damage") && (command.frontEndAnimation === "normal_attack_damage" || command.frontEndAnimation === "stab_damage" || command.frontEndAnimation === "critical_strike_damage" || command.frontEndAnimation === "lifesteal_damage" || command.frontEndAnimation === "galahad_slash_damage" || command.frontEndAnimation === "galahad_laser_damage" || command.frontEndAnimation === "parry_counter_damage" || command.frontEndAnimation === "counter_damage" || command.frontEndAnimation === "fireball_damage" || command.frontEndAnimation === "plague_damage" || command.frontEndAnimation === "burn_damage" || command.frontEndAnimation === "poison_damage" || command.frontEndAnimation === "status_damage" || command.frontEndAnimation === "thunder_damage" || command.frontEndAnimation === "thunder_damage_last" || command.frontEndAnimation === "earthquake_damage" || command.frontEndAnimation === "ice_damage" || command.frontEndAnimation === "life_wheel_damage" || command.frontEndAnimation === "world_search_damage" || command.frontEndAnimation === "world_execute_damage" || command.frontEndAnimation === "yi_tri_damage" || command.frontEndAnimation === "yi_arrow_damage" || command.frontEndAnimation === "yi_qizhu_damage" || command.frontEndAnimation === "yi_seek_damage" || command.frontEndAnimation === "yi_internal_damage" || command.frontEndAnimation === "yi_electric_damage") && command.targetPlayerId !== 0);
-    const healCommand = segmentCommands.find((command) => command.frontEndAnimation === "heal" || command.frontEndAnimation === "lifesteal_heal" || command.frontEndAnimation === "galahad_witch_heal" || command.frontEndAnimation === "status_heal" || command.frontEndAnimation === "revive_heal" || command.frontEndAnimation === "life_wheel_heal" || command.frontEndAnimation === "devour_heal" || command.frontEndAnimation === "yi_medicine");
-    const reviveCommand = segmentCommands.find((command) => command.frontEndAnimation === "revive_heal");
+    const damageCommands = segmentCommands.filter((command) => command.targetPlayerId !== 0 && command.value > 0 && (command.renderTone === 3 || command.frontEndAnimation === "galahad_laser_damage" || command.frontEndAnimation === "food_damage"));
+    const healCommandsByTarget = new Map<number, { first: CppRenderCommand; last: CppRenderCommand; wasRevived: boolean }>();
+    for (const command of segmentCommands) {
+      if (command.targetPlayerId === 0 || command.renderTone !== 4 || command.value <= 0) continue;
+      const existing = healCommandsByTarget.get(command.targetPlayerId);
+      healCommandsByTarget.set(command.targetPlayerId, {
+        first: existing?.first ?? command,
+        last: command,
+        wasRevived: (existing?.wasRevived ?? false) || command.frontEndAnimation === "revive_heal",
+      });
+    }
     const deathCommand = segmentCommands.find((command) => command.frontEndAnimation === "death" || command.frontEndAnimation === "familiar_depart");
     const worldExecutePulse = segmentCommands.some((command) => command.frontEndAnimation === "world_execute");
     const familiarSpawnCommand = segmentCommands.find((command) => command.frontEndAnimation === "summon_spawn" && command.targetPlayerId !== 0);
@@ -422,7 +430,7 @@ export function BattlePlayback({ battle, onRestart, compactMode = false, watchMo
     const eventDelay = isWatchMode ? (isBlankLine ? 240 : 1000) : isBlankLine ? (isLongBattle ? 16 : 32) : isNextFinalThunderEvent ? (isLongBattle ? 110 : 180) : isEarthquakeDamage ? (isLongBattle ? 42 : 82) : (isLongBattle ? 48 : 96);
     const segmentDelay = isWatchMode ? 820 : 60;
     const animationBaseDelay = isWatchMode ? 900 : eventDelay;
-    const lifeEraseDelay = Math.max(4, Math.floor(animationBaseDelay * 0.05));
+    const lifeEraseDelay = Math.max(18, Math.floor(animationBaseDelay * 0.35));
     const lifeTransitionMs = Math.max(12, Math.floor(animationBaseDelay * 0.5));
     const timers: number[] = [];
 
@@ -436,48 +444,56 @@ export function BattlePlayback({ battle, onRestart, compactMode = false, watchMo
       });
 
       if (nextVisuals.length > 0) {
-        setDisplayPlayers((players) => {
-          const nextPlayers = players.map((player) => {
-            const visual = nextVisuals.filter((item) => item.targetPlayerId === player.id).at(-1);
-            return visual ? { ...player, hp: visual.afterHp } : player;
-          });
-          displayPlayersRef.current = nextPlayers;
-          return nextPlayers;
+        const nextPlayers = displayPlayersRef.current.map((player) => {
+          const visual = nextVisuals.filter((item) => item.targetPlayerId === player.id).at(-1);
+          return visual ? { ...player, hp: visual.afterHp } : player;
         });
+        displayPlayersRef.current = nextPlayers;
+        setDisplayPlayers(nextPlayers);
         setDamageVisuals(nextVisuals);
         timers.push(window.setTimeout(() => setDamageVisuals((visuals) => visuals.map((visual) => ({ ...visual, phase: "erasing" }))), lifeEraseDelay));
       }
     }
 
-    if (healCommand && healCommand.targetPlayerId !== 0) {
-      const target = displayPlayersRef.current.find((player) => player.id === healCommand.targetPlayerId);
+    if (healCommandsByTarget.size > 0) {
+      const nextPlayers = displayPlayersRef.current.map((player) => {
+        const heal = healCommandsByTarget.get(player.id);
+        if (!heal) return player;
+        const healedHp = heal.last.valueAfter;
+        return {
+          ...player,
+          hp: healedHp,
+          alive: heal.wasRevived ? true : player.alive,
+          isRevived: heal.wasRevived ? true : player.isRevived,
+          freezeStrength: heal.wasRevived ? 0 : player.freezeStrength,
+          freezeLayers: heal.wasRevived ? 0 : player.freezeLayers,
+          speedDownStrength: heal.wasRevived ? 0 : player.speedDownStrength,
+          speedDownLayers: heal.wasRevived ? 0 : player.speedDownLayers,
+          burnStrength: heal.wasRevived ? 0 : player.burnStrength,
+          burnLayers: heal.wasRevived ? 0 : player.burnLayers,
+          poisonStrength: heal.wasRevived ? 0 : player.poisonStrength,
+          poisonLayers: heal.wasRevived ? 0 : player.poisonLayers,
+        };
+      });
+      displayPlayersRef.current = nextPlayers;
+      setDisplayPlayers(nextPlayers);
 
-      if (target) {
-        const animationId = ++healAnimationIdRef.current;
-        const beforeHp = reviveCommand ? 0 : Math.max(0, healCommand.valueAfter - healCommand.value);
-
-        setDisplayPlayers((players) => {
-          const nextPlayers = players.map((player) => player.id === target.id ? {
-            ...player,
-            hp: healCommand.valueAfter,
-            alive: reviveCommand ? true : player.alive,
-            isRevived: reviveCommand ? true : player.isRevived,
-            freezeStrength: reviveCommand ? 0 : player.freezeStrength,
-            freezeLayers: reviveCommand ? 0 : player.freezeLayers,
-            speedDownStrength: reviveCommand ? 0 : player.speedDownStrength,
-            speedDownLayers: reviveCommand ? 0 : player.speedDownLayers,
-            burnStrength: reviveCommand ? 0 : player.burnStrength,
-            burnLayers: reviveCommand ? 0 : player.burnLayers,
-            poisonStrength: reviveCommand ? 0 : player.poisonStrength,
-            poisonLayers: reviveCommand ? 0 : player.poisonLayers,
-          } : player);
-          displayPlayersRef.current = nextPlayers;
-          return nextPlayers;
-        });
-        if (reviveCommand) setDamageVisuals((visuals) => visuals.filter((visual) => visual.targetPlayerId !== target.id));
-        setHealVisuals([{ animationId, targetPlayerId: target.id, beforeHp, afterHp: healCommand.valueAfter, transitionMs: lifeTransitionMs, phase: "marked" }]);
-        timers.push(window.setTimeout(() => setHealVisuals((visuals) => visuals.map((visual) => visual.animationId === animationId ? { ...visual, phase: "erasing" } : visual)), lifeEraseDelay));
-      }
+      const nextHealVisuals = Array.from(healCommandsByTarget.entries()).flatMap(([targetPlayerId, heal]) => {
+        const target = nextPlayers.find((player) => player.id === targetPlayerId);
+        if (!target) return [];
+        return [{
+          animationId: ++healAnimationIdRef.current,
+          targetPlayerId,
+          beforeHp: heal.wasRevived ? 0 : Math.max(0, heal.first.valueAfter - heal.first.value),
+          afterHp: heal.last.valueAfter,
+          transitionMs: lifeTransitionMs,
+          phase: "marked" as const,
+        }];
+      });
+      const revivedPlayers = new Set(Array.from(healCommandsByTarget.entries()).filter(([, heal]) => heal.wasRevived).map(([targetPlayerId]) => targetPlayerId));
+      if (revivedPlayers.size > 0) setDamageVisuals((visuals) => visuals.filter((visual) => revivedPlayers.has(visual.targetPlayerId) === false));
+      setHealVisuals(nextHealVisuals);
+      timers.push(window.setTimeout(() => setHealVisuals((visuals) => visuals.map((visual) => ({ ...visual, phase: "erasing" }))), lifeEraseDelay));
     }
 
     if (deathCommand && deathCommand.targetPlayerId !== 0) {

@@ -52,12 +52,12 @@ describe("watch mode playback", () => {
     expect(streamText()).not.toContain("2段");
     expect(container.textContent).toContain("90/100");
 
-    act(() => { vi.advanceTimersByTime(830); });
+    act(() => { vi.advanceTimersByTime(630); });
     expect(streamText()).toContain("2段");
     expect(streamText()).not.toContain("3段");
     expect(container.textContent).toContain("70/100");
 
-    act(() => { vi.advanceTimersByTime(830); });
+    act(() => { vi.advanceTimersByTime(630); });
     expect(streamText()).toContain("3段");
     expect(container.textContent).toContain("40/100");
 
@@ -83,8 +83,47 @@ describe("watch mode playback", () => {
     expect(container.querySelector('.hp-meter[aria-label="beta 生命 90/100"]')).not.toBeNull();
     expect(betaUnit()?.classList.contains("is-defeated")).toBe(false);
 
-    act(() => { vi.advanceTimersByTime(830); });
+    act(() => { vi.advanceTimersByTime(630); });
     expect(betaUnit()?.classList.contains("is-defeated")).toBe(true);
+  });
+
+  it("uses a clear stolen-skill announcement instead of the misleading chain-cast wording", () => {
+    const stolenSkillBattle: CppBattleSimulationResponse = {
+      ...battle,
+      commands: [
+        { ...command("张洋连放", "boss_stolen_cast", 0, 0, 100, false), targetPlayerId: 1 },
+        { ...command("三元剑", "boss_stolen_cast", 2, 0, 100, true), targetPlayerId: 1 },
+        command("战斗结束", "battle_end", 1, 0, 0, true),
+      ],
+    };
+    const { container } = render(<BattlePlayback battle={stolenSkillBattle} onRestart={() => {}} />);
+    const streamText = container.querySelector(".playback-stream")?.textContent ?? "";
+
+    expect(streamText).toContain("张洋释放偷来的三元剑");
+    expect(streamText).not.toContain("张洋连放");
+  });
+
+  it("keeps the healed hp segment blue and visibly merges it into the health bar", () => {
+    const healingBattle: CppBattleSimulationResponse = {
+      ...battle,
+      initialPlayers: [makePlayer(1, "alpha"), { ...makePlayer(2, "beta"), hp: 40 }],
+      finalPlayers: [makePlayer(1, "alpha"), { ...makePlayer(2, "beta"), hp: 60 }],
+      commands: [
+        { ...command("beta恢复20生命", "heal", 4, 20, 60, true), sourcePlayerId: 1, targetPlayerId: 2 },
+        command("战斗结束", "battle_end", 1, 0, 0, true),
+      ],
+    };
+    const { container } = render(<BattlePlayback battle={healingBattle} watchMode onRestart={() => {}} />);
+    const healSegment = container.querySelector<HTMLElement>(".hp-heal");
+
+    expect(container.querySelector('.hp-meter[aria-label="beta 生命 60/100"]')).not.toBeNull();
+    expect(healSegment).not.toBeNull();
+    expect(healSegment?.style.left).toBe("40%");
+    expect(healSegment?.style.width).toBe("20%");
+    expect(healSegment?.style.getPropertyValue("--hp-animation-duration")).toBe("310ms");
+
+    act(() => { vi.advanceTimersByTime(218); });
+    expect(healSegment?.classList.contains("is-erasing")).toBe(true);
   });
 
   it("renders food hp loss and applies every heal in the same event", () => {

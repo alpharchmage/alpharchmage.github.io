@@ -410,7 +410,7 @@ export function BattlePlayback({ battle, onRestart, compactMode = false, watchMo
             setSegmentIndex(0);
             setEventIndex((index) => index + 1);
           }
-        }, isWatchMode ? 340 : 80);
+        }, isWatchMode ? 240 : 80);
         return () => { window.clearTimeout(eraseTimer); window.clearTimeout(nextTimer); };
       }
     }
@@ -426,9 +426,10 @@ export function BattlePlayback({ battle, onRestart, compactMode = false, watchMo
     const isBlankLine = currentEvent.every((command) => command.text.length === 0);
     const isNextFinalThunderEvent = events[eventIndex + 1]?.some((command) => command.frontEndAnimation === "thunder_damage_last") ?? false;
     const isEarthquakeDamage = currentEvent.some((command) => command.frontEndAnimation === "earthquake_damage");
-    const eventDelay = isWatchMode ? (isBlankLine ? 240 : 1000) : isBlankLine ? (isLongBattle ? 16 : 32) : isNextFinalThunderEvent ? (isLongBattle ? 110 : 180) : isEarthquakeDamage ? (isLongBattle ? 42 : 82) : (isLongBattle ? 48 : 96);
-    const segmentDelay = isWatchMode ? 820 : 60;
-    const animationBaseDelay = isWatchMode ? 900 : eventDelay;
+    const regularEventDelay = isBlankLine ? (isLongBattle ? 16 : 32) : isNextFinalThunderEvent ? (isLongBattle ? 110 : 180) : isEarthquakeDamage ? (isLongBattle ? 42 : 82) : (isLongBattle ? 48 : 96);
+    const eventDelay = isWatchMode ? (isBlankLine ? 160 : 760) : healCommandsByTarget.size > 0 ? Math.max(regularEventDelay, 320) : regularEventDelay;
+    const segmentDelay = isWatchMode ? 620 : 60;
+    const animationBaseDelay = isWatchMode ? 620 : eventDelay;
     const lifeEraseDelay = Math.max(18, Math.floor(animationBaseDelay * 0.35));
     const lifeTransitionMs = Math.max(12, Math.floor(animationBaseDelay * 0.5));
     const timers: number[] = [];
@@ -609,9 +610,10 @@ export function BattlePlayback({ battle, onRestart, compactMode = false, watchMo
                 const isGuardLabel = isGuardCommand && command.text === "守护";
                 const isGuardName = guardNames.has(command.text);
                 const poisonFailureText = command.frontEndAnimation === "poison_fail" ? command.text.trim() || "失败" : command.text;
+                const displayText = command.frontEndAnimation === "boss_stolen_cast" ? poisonFailureText.replace(/连放$/, "释放偷来的") : poisonFailureText;
                 const commandTone = isGuardLabel ? "tone-ironwall" : isGuardName ? "tone-normal" : command.frontEndAnimation === "poison_fail" ? "tone-poison" : toneClass(command.renderTone);
                 const commandClassName = `${commandTone}${isParryCounterNumber ? " parry-counter-number" : ""}${command.frontEndAnimation === "world_search" && command.text === "world.search(you);" ? " world-search-text" : ""}${command.frontEndAnimation === "world_execute" && (command.text === "world.execute(me);" || command.text === "execute") ? " world-execute-text" : ""}`;
-                return <span className={commandClassName} key={`${commandIndex}-${command.text}`}>{isParryCounterNumber && <i className="parry-counter-flash-ring" aria-hidden="true" />}{command.frontEndAnimation === "freeze_apply" && command.text === "冻结" && <img className="freeze-icon" src={FREEZE_ICON_URL} alt="" aria-hidden="true" />}{command.frontEndAnimation === "ironwall" && command.text === "铁壁" && <img className="ironwall-icon" src={IRONWALL_ICON_URL} alt="" aria-hidden="true" />}{command.frontEndAnimation === "lifesteal_attack" && command.text === "吸血攻击" && <img className="lifesteal-icon" src={LIFESTEAL_ICON_URL} alt="" aria-hidden="true" />}{command.frontEndAnimation === "fireball" && command.text === "火球术" && <img className="fire-icon" src={FIRE_ICON_URL} alt="" aria-hidden="true" />}{command.frontEndAnimation === "poison" && command.text === "投毒" && <img className="poison-icon" src={POISON_ICON_URL} alt="" aria-hidden="true" />}{poisonFailureText}</span>;
+                return <span className={commandClassName} key={`${commandIndex}-${command.text}`}>{isParryCounterNumber && <i className="parry-counter-flash-ring" aria-hidden="true" />}{command.frontEndAnimation === "freeze_apply" && command.text === "冻结" && <img className="freeze-icon" src={FREEZE_ICON_URL} alt="" aria-hidden="true" />}{command.frontEndAnimation === "ironwall" && command.text === "铁壁" && <img className="ironwall-icon" src={IRONWALL_ICON_URL} alt="" aria-hidden="true" />}{command.frontEndAnimation === "lifesteal_attack" && command.text === "吸血攻击" && <img className="lifesteal-icon" src={LIFESTEAL_ICON_URL} alt="" aria-hidden="true" />}{command.frontEndAnimation === "fireball" && command.text === "火球术" && <img className="fire-icon" src={FIRE_ICON_URL} alt="" aria-hidden="true" />}{command.frontEndAnimation === "poison" && command.text === "投毒" && <img className="poison-icon" src={POISON_ICON_URL} alt="" aria-hidden="true" />}{displayText}</span>;
               })}</p> : null;
             })}
             {eventIndex + 1 < events.length && <p className="playback-wait">战斗播放中…</p>}

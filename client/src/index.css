@@ -119,7 +119,7 @@ button:disabled { cursor: wait; }
 .is-poisoned .hp-fill { background: #9e72d1; }
 .hp-loss { position: absolute; inset-block: 0; z-index: 2; background: #e25d65; transform: scaleX(1); transform-origin: left center; will-change: transform; }
 .hp-loss.is-erasing { transform: scaleX(0); transition: transform var(--hp-animation-duration, .06s) cubic-bezier(.16, 1, .3, 1); }
-.hp-heal { position: absolute; inset-block: 0; z-index: 2; background: #9bdfaf; transform: scaleX(1); transform-origin: right center; will-change: transform; }
+.hp-heal { position: absolute; inset-block: 0; z-index: 2; background: #3b82f6; transform: scaleX(1); transform-origin: right center; will-change: transform; }
 .hp-heal.is-erasing { transform: scaleX(0); transition: transform var(--hp-animation-duration, .06s) cubic-bezier(.16, 1, .3, 1); }
 .yi-resources { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 7px; min-height: 16px; color: #557079; font-size: 9px; line-height: 14px; }
 .yi-resource { display: inline-flex; align-items: center; gap: 2px; white-space: nowrap; }

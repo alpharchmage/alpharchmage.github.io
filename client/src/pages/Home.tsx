@@ -277,12 +277,11 @@ export function BattlePlayback({ battle, onRestart, compactMode = false, watchMo
     const segmentEnd = isWatchMode ? watchSegmentEnds[Math.min(segmentIndex, watchSegmentEnds.length - 1)] : currentEvent.length - 1;
     const segmentCommands = isWatchMode ? currentEvent.slice(segmentStart, segmentEnd + 1) : currentEvent;
     const statusCommands = new Map<number, CppRenderCommand>();
-    for (const command of currentEvent) {
+    for (const command of segmentCommands) {
       const hasStatusSnapshot = command.frontEndAnimation === "status_sync" || [command.freezeStrength, command.freezeLayers, command.ironwallStrength, command.ironwallLayers, command.defenseDownStrength, command.defenseDownLayers, command.damageDownStrength, command.damageDownLayers, command.squareStrength, command.squareLayers, command.speedUpStrength, command.speedUpLayers, command.speedDownStrength, command.speedDownLayers, command.burnStrength, command.burnLayers, command.poisonStrength, command.poisonLayers, command.parryLayers, command.lamentLayers, command.targetLockLayers, command.qi, command.internalInjury, command.seekingLayers, command.talismanLayers, command.cangsha, command.medicineUses, command.playerName, command.playerMaxHp, command.playerPhysicalAttack, command.playerPhysicalDefense, command.playerMagicAttack, command.playerMagicDefense, command.playerSpeed].some((value) => value !== undefined);
       if (command.targetPlayerId !== 0 && hasStatusSnapshot) statusCommands.set(command.targetPlayerId, command);
     }
-
-    if (segmentIndex === 0 && statusCommands.size > 0) {
+    if (statusCommands.size > 0) {
       const nextPlayers = displayPlayersRef.current.map((player) => {
         const statusCommand = statusCommands.get(player.id);
         if (!statusCommand) return player;

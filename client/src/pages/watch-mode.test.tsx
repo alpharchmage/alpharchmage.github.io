@@ -65,6 +65,28 @@ describe("watch mode playback", () => {
     expect(streamText()).toContain("战斗结束");
   });
 
+  it("does not hide a unit's health bar before a later skill segment defeats it", () => {
+    const multiHitBattle: CppBattleSimulationResponse = {
+      ...battle,
+      commands: [
+        { ...command("羿开始攻击，", "yi_tri_sword", 2, 0, 100, false), alive: true, playerMaxHp: 100 },
+        { ...command("第一击：", "yi_tri_sword", 0, 0, 100, false), alive: true, playerMaxHp: 100 },
+        { ...command("10", "yi_tri_damage", 3, 10, 90, false), alive: true, playerMaxHp: 100 },
+        { ...command("第二击：", "yi_tri_sword", 0, 0, 90, false), alive: true, playerMaxHp: 100 },
+        { ...command("90", "yi_tri_damage", 3, 90, 0, false), alive: false, playerMaxHp: 100 },
+        { ...command("beta倒下", "death", 1, 0, 0, true), alive: false, playerMaxHp: 100 },
+      ],
+    };
+    const { container } = render(<BattlePlayback battle={multiHitBattle} watchMode onRestart={() => {}} />);
+    const betaUnit = () => Array.from(container.querySelectorAll(".unit-readout")).find((unit) => unit.textContent?.includes("beta"));
+
+    expect(container.querySelector('.hp-meter[aria-label="beta 生命 90/100"]')).not.toBeNull();
+    expect(betaUnit()?.classList.contains("is-defeated")).toBe(false);
+
+    act(() => { vi.advanceTimersByTime(830); });
+    expect(betaUnit()?.classList.contains("is-defeated")).toBe(true);
+  });
+
   it("renders food hp loss and applies every heal in the same event", () => {
     const gamma = { ...makePlayer(3, "gamma"), hp: 40 };
     const foodBattle: CppBattleSimulationResponse = {

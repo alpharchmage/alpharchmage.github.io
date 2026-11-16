@@ -84,6 +84,7 @@ export type CppRenderCommand = {
   cangsha?: number;
   medicineUses?: number;
   hornetSilk?: number;
+  sourceHornetSilk?: number;
   hornetInvulnActions?: number;
   hornetThreadPending?: boolean;
   freezeStrength?: number;
@@ -113,6 +114,7 @@ export type CppRenderCommand = {
   playerMagicAttack?: number;
   playerMagicDefense?: number;
   playerSpeed?: number;
+  delayAfterMs?: number;
   newlineAfter: boolean;
 };
 

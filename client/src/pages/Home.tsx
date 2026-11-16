@@ -278,11 +278,15 @@ export function BattlePlayback({ battle, onRestart, compactMode = false, watchMo
     const segmentEnd = isWatchMode ? watchSegmentEnds[Math.min(segmentIndex, watchSegmentEnds.length - 1)] : currentEvent.length - 1;
     const segmentCommands = isWatchMode ? currentEvent.slice(segmentStart, segmentEnd + 1) : currentEvent;
     const statusCommands = new Map<number, CppRenderCommand>();
+    const sourceHornetSilkCommands = new Map<number, number>();
     for (const command of segmentCommands) {
+      if (command.sourcePlayerId !== 0 && command.sourceHornetSilk !== undefined) {
+        sourceHornetSilkCommands.set(command.sourcePlayerId, command.sourceHornetSilk);
+      }
       const hasStatusSnapshot = command.frontEndAnimation === "status_sync" || [command.freezeStrength, command.freezeLayers, command.ironwallStrength, command.ironwallLayers, command.defenseDownStrength, command.defenseDownLayers, command.damageDownStrength, command.damageDownLayers, command.squareStrength, command.squareLayers, command.speedUpStrength, command.speedUpLayers, command.speedDownStrength, command.speedDownLayers, command.burnStrength, command.burnLayers, command.poisonStrength, command.poisonLayers, command.parryLayers, command.lamentLayers, command.targetLockLayers, command.qi, command.internalInjury, command.seekingLayers, command.talismanLayers, command.cangsha, command.medicineUses, command.hornetSilk, command.hornetInvulnActions, command.hornetThreadPending, command.playerName, command.playerMaxHp, command.playerPhysicalAttack, command.playerPhysicalDefense, command.playerMagicAttack, command.playerMagicDefense, command.playerSpeed].some((value) => value !== undefined);
       if (command.targetPlayerId !== 0 && hasStatusSnapshot) statusCommands.set(command.targetPlayerId, command);
     }
-    if (statusCommands.size > 0) {
+    if (statusCommands.size > 0 || sourceHornetSilkCommands.size > 0) {
       const nextPlayers = displayPlayersRef.current.map((player) => {
         const statusCommand = statusCommands.get(player.id);
         if (!statusCommand) return player;
@@ -329,6 +333,9 @@ export function BattlePlayback({ battle, onRestart, compactMode = false, watchMo
           alive: statusCommand.alive ?? player.alive,
           isRevived: statusCommand.frontEndAnimation === "revive_heal" || statusCommand.frontEndAnimation === "familiar_transform" ? true : statusCommand.alive === false ? false : player.isRevived,
         };
+      }).map((player) => {
+        const sourceHornetSilk = sourceHornetSilkCommands.get(player.id);
+        return sourceHornetSilk === undefined ? player : { ...player, hornetSilk: sourceHornetSilk };
       });
       displayPlayersRef.current = nextPlayers;
       setDisplayPlayers(nextPlayers);
@@ -428,10 +435,9 @@ export function BattlePlayback({ battle, onRestart, compactMode = false, watchMo
     }
 
     const isBlankLine = currentEvent.every((command) => command.text.length === 0);
-    const isNextFinalThunderEvent = events[eventIndex + 1]?.some((command) => command.frontEndAnimation === "thunder_damage_last") ?? false;
-    const isEarthquakeDamage = currentEvent.some((command) => command.frontEndAnimation === "earthquake_damage");
-    const regularEventDelay = isBlankLine ? (isLongBattle ? 16 : 32) : isNextFinalThunderEvent ? (isLongBattle ? 110 : 180) : isEarthquakeDamage ? (isLongBattle ? 42 : 82) : (isLongBattle ? 48 : 96);
-    const eventDelay = isWatchMode ? (isBlankLine ? 160 : 760) : healCommandsByTarget.size > 0 ? Math.max(regularEventDelay, 320) : regularEventDelay;
+    const finalCommand = currentEvent[currentEvent.length - 1];
+    const configuredDelay = Math.max(0, finalCommand?.delayAfterMs ?? (battle.longBattle ? 48 : 96));
+    const eventDelay = isWatchMode ? (isBlankLine ? 160 : Math.max(760, configuredDelay)) : healCommandsByTarget.size > 0 ? Math.max(configuredDelay, 320) : configuredDelay;
     const segmentDelay = isWatchMode ? 620 : 60;
     const animationBaseDelay = isWatchMode ? 620 : eventDelay;
     const lifeEraseDelay = Math.max(18, Math.floor(animationBaseDelay * 0.35));
